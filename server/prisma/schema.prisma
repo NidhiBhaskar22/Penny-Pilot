@@ -1,0 +1,294 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id          Int          @id @default(autoincrement())
+  name        String
+  email       String       @unique
+  password    String
+  createdAt   DateTime     @default(now())
+  balance     Decimal      @db.Decimal(10, 2) @default(0)
+  incomes     Income[]
+  expenses    Expense[]
+  investments Investment[]
+  balances    Balance[]
+  limits      Limit[]
+  splitShares SplitExpense[] @relation("SplitParticipant")
+  splitPayments SplitExpense[] @relation("SplitPayer") 
+  lentMoney   MoneyLent[]  @relation("Lender")
+  borrowedMoney MoneyBorrowed[] @relation("BorrowerUser")
+  insurances  Insurance[]
+  loans      Loan[]
+  emis        EMI[] 
+  goals       Goal[] 
+  taxRecords  TaxRecord[]
+}
+
+model Account {
+  id       Int @id @default(autoincrement())
+  user     User @relation(fields: [userId], references: [id])
+  userId   Int 
+  name     String
+  type     String
+  balance  Decimal @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  incomes  Income[]
+  expenses Expense[]
+}
+
+model Category{
+  id      Int     @id @default(autoincrement())
+  name    String
+  type    String   
+  user    User     @relation(fields: [userId], references: [id])
+  userId  Int
+  kakeibo String?
+
+  @@unique([userId, name])
+}
+
+
+model Income {
+  id         Int      @id @default(autoincrement())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     Int
+  amount     Decimal  @db.Decimal(10, 2) 
+  source     String 
+  tag        String? 
+  creditedAt DateTime 
+  month      String 
+  salaryBreakdown String? 
+  account    Account  @relation(fields: [accountId], references: [id])
+  accountId  Int
+  category   Category  @relation(fields: [categoryId], references: [id])
+  categoryId Int
+}
+
+model Expense {
+  id      Int      @id @default(autoincrement())
+  user    User     @relation(fields: [userId], references: [id])
+  userId  Int
+  amount  Decimal  @db.Decimal(10, 2)
+  tag     String 
+  spentAt DateTime
+  month   String
+  week    Int? 
+  account   Account  @relation(fields: [accountId], references: [id])
+  accountId  Int
+  category   Category  @relation(fields: [categoryId], references: [id])
+  categoryId Int
+
+  splitExpenses SplitExpense[] 
+}
+
+model Investment {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  amount      Decimal  @db.Decimal(10, 2)
+  instrument  String   
+  type        String?  
+  roi         Decimal  @db.Decimal(10, 2) 
+  projections String?  
+  details     String?  
+  investedAt  DateTime
+  month       String
+  week        Int?
+}
+
+
+model Balance {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  current   Decimal  @db.Decimal(10, 2)
+  lastWeek  Decimal  @db.Decimal(10, 2) @default(0)
+  lastMonth Decimal  @db.Decimal(10, 2) @default(0)
+  month     String
+  week      Int?
+  updatedAt DateTime @default(now())
+}
+
+model GoalContribution {
+  id           Int        @id @default(autoincrement())
+  goal         Goal       @relation(fields: [goalId], references: [id])
+  goalId       Int
+  income       Income?    @relation(fields: [incomeId], references: [id])
+  incomeId     Int?
+  expense      Expense?   @relation(fields: [expenseId], references: [id])
+  expenseId    Int?
+  amount       Decimal    @db.Decimal(18,2)
+  createdAt    DateTime   @default(now())
+}
+
+model Goal {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  title       String
+  description String?
+  targetAmount Decimal  @db.Decimal(10, 2)
+  currentAmount Decimal  @db.Decimal(10, 2) @default(0)
+  deadline    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  contributions GoalContribution[]
+}
+
+model TaxRecord {
+  id          Int      @id @default(autoincrement())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      Int
+  financialYear String 
+  taxableIncome Decimal  @db.Decimal(10, 2)
+  exemptions   Decimal  @db.Decimal(10, 2) @default(0)
+  liability    Decimal  @db.Decimal(10, 2) @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum LimitScope {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+model Limit {
+  id          Int        @id @default(autoincrement())
+  user        User       @relation(fields: [userId], references: [id])
+  userId      Int
+  scope       LimitScope
+  amount      Decimal    @db.Decimal(18,2)
+  month       Int?       
+  year        Int?
+  week        Int?       
+  day         DateTime? 
+  category    Category?  @relation(fields: [categoryId], references: [id])
+  categoryId  Int?
+}
+
+
+model SplitExpense {
+  id           Int   @id @default(autoincrement())
+  expense      Expense @relation(fields: [expenseId], references: [id])
+  expenseId    Int
+  user         User    @relation("SplitParticipant", fields: [userId], references: [id])
+  userId       Int
+  amountOwed   Decimal @db.Decimal(18,2)
+  amountPaid   Decimal @db.Decimal(18,2) @default(0)
+  paidBy       User?   @relation("SplitPayer", fields: [paidByUserId], references: [id])
+  paidByUserId Int?
+}
+
+
+model MoneyLent {
+  id        Int      @id @default(autoincrement())
+  lender    User     @relation("Lender", fields: [lenderId], references: [id])
+  lenderId  Int
+  borrower  String
+  amount    Decimal  @db.Decimal(10, 2)
+  amountRepaid Decimal  @db.Decimal(10, 2) @default(0)
+  purpose   String?
+  dueDate   DateTime?
+  lentAt    DateTime @default(now())
+  repaid    Boolean  @default(false)
+  repaidAt  DateTime?
+}
+
+model MoneyBorrowed {
+  id         Int      @id @default(autoincrement())
+  borrower   User     @relation("BorrowerUser", fields: [borrowerId], references: [id])
+  borrowerId Int
+  lender     String
+  amount     Decimal  @db.Decimal(10, 2)
+  purpose    String?
+  dueDate    DateTime?
+  returned   Boolean  @default(false)
+}
+
+model Insurance {
+  id      Int      @id @default(autoincrement())
+  user    User     @relation(fields: [userId], references: [id])
+  userId  Int
+  policyName String
+  policyNumber String
+  coverageAmount Decimal  @db.Decimal(10, 2)
+  premium Decimal  @db.Decimal(10, 2)
+  renewalDate DateTime
+  details String? 
+}
+
+model Loan {
+  id            Int      @id @default(autoincrement())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        Int
+  amount        Decimal  @db.Decimal(10, 2)
+  tenureMonths  Int
+  startDate     DateTime
+  interestRate  Decimal  @db.Decimal(5, 2)
+  outstanding   Decimal  @db.Decimal(10, 2)
+  description   String?
+  emis          EMI[]   
+  payments LoanPayment[]
+}
+
+model LoanPayment {
+  id         Int      @id @default(autoincrement())
+  loan       Loan     @relation(fields: [loanId], references: [id])
+  loanId     Int
+  amount     Decimal  @db.Decimal(10, 2)
+  paidAt     DateTime @default(now())
+}
+
+enum EMIType {
+  LOAN 
+  CARD
+  OTHER
+}
+
+model EMI {
+  id             Int        @id @default(autoincrement())
+  user           User       @relation(fields: [userId], references: [id])
+  userId         Int
+  title          String     
+  type           EMIType    @default(LOAN)
+
+  totalAmount    Decimal    @db.Decimal(18, 2) 
+  numInstallments Int
+  emiAmount      Decimal    @db.Decimal(18, 2) 
+  startDate      DateTime  
+
+  linkedLoanId   Int?     
+  loan           Loan?      @relation(fields: [linkedLoanId], references: [id])
+
+  schedules      EMISchedule[]  
+
+  createdAt      DateTime   @default(now())
+}
+
+model EMISchedule {
+  id        Int       @id @default(autoincrement())
+
+  emi       EMI       @relation(fields: [emiId], references: [id])
+  emiId     Int
+
+  user      User      @relation(fields: [userId], references: [id])
+  userId    Int
+
+  dueDate   DateTime
+  amount    Decimal   @db.Decimal(18, 2)
+
+  paid      Boolean   @default(false)
+  paidAt    DateTime?
+
+  expense   Expense?  @relation(fields: [expenseId], references: [id])
+  expenseId Int?
+}
