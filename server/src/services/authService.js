@@ -1,17 +1,43 @@
 // src/services/authService.js
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const { OAuth2Client } = require("google-auth-library");
 const prisma = require("../config/prismaClient");
 const { ApiError } = require("../middleware/errorMiddleware");
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-if (!JWT_SECRET) {
+if (!process.env.JWT_SECRET) {
   console.warn("⚠️  JWT_SECRET is not set in environment variables");
 }
 
 function signToken(userId) {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "7d" });
+}
+
+async function verifyGoogleIdToken(idToken) {
+  if (!GOOGLE_CLIENT_ID) {
+    throw new ApiError(500, "GOOGLE_CLIENT_ID is not configured");
+  }
+
+  const ticket = await googleClient.verifyIdToken({
+    idToken,
+    audience: GOOGLE_CLIENT_ID,
+  });
+
+  const payload = ticket.getPayload();
+  if (!payload) {
+    throw new ApiError(401, "Invalid Google token payload");
+  }
+
+  if (!payload.email_verified) {
+    throw new ApiError(401, "Google email is not verified");
+  }
+
+  return payload;
 }
 
 // REGISTER
@@ -78,6 +104,47 @@ async function loginUser({ email, password }) {
   };
 }
 
+// LOGIN WITH GOOGLE (ID token)
+async function loginWithGoogle({ idToken }) {
+  if (!idToken) {
+    throw new ApiError(400, "idToken is required");
+  }
+
+  const tokenInfo = await verifyGoogleIdToken(idToken);
+  const email = tokenInfo.email;
+
+  if (!email) {
+    throw new ApiError(400, "Google account email is missing");
+  }
+
+  let user = await prisma.user.findUnique({ where: { email } });
+
+  if (!user) {
+    const randomPassword = crypto.randomBytes(32).toString("hex");
+    const hashedPassword = await bcrypt.hash(randomPassword, 10);
+
+    user = await prisma.user.create({
+      data: {
+        name: tokenInfo.name || email.split("@")[0],
+        email,
+        password: hashedPassword,
+      },
+    });
+  }
+
+  const token = signToken(user.id);
+
+  return {
+    token,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      balance: user.balance,
+    },
+  };
+}
+
 // COMPLETE PROFILE (name + balance)
 async function completeProfile(userId, { name, balance }) {
   if (!name || Number.isNaN(Number(balance))) {
@@ -108,5 +175,6 @@ async function completeProfile(userId, { name, balance }) {
 module.exports = {
   registerUser,
   loginUser,
+  loginWithGoogle,
   completeProfile,
 };

@@ -1,39 +1,75 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
-import { applyBalanceChange } from "../utils/balanceUtils.js";
+const prisma = require("../config/prismaClient");
+const { applyBalanceChange } = require("../utils/balanceUtils");
 
-// ---- Controller functions ----
+const getUserId = (req) => req.user?.userId ?? req.user?.id;
 
-export const createEMI = async (req, res) => {
+const addMonths = (date, months) => {
+  const d = new Date(date);
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  if (d.getDate() < day) d.setDate(0);
+  return d;
+};
+
+// Create EMI + schedules
+const createEMI = async (req, res) => {
   try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
     const {
       title,
+      type,
       totalAmount,
       numInstallments,
       startDate,
-      userId,
       linkedLoanId,
     } = req.body;
-    const emiAmount = totalAmount / numInstallments;
 
-    const emi = await prisma.eMI.create({
-      data: {
-        title,
-        totalAmount,
-        numInstallments,
-        emiAmount,
-        amountPaid: 0,
-        remaininginstallments: numInstallments, // ✅ Match your schema field name
-        startDate: new Date(startDate),
-        userId,
-        linkedLoanId,
-      },
+    if (!title || !totalAmount || !numInstallments || !startDate) {
+      return res.status(400).json({
+        message: "title, totalAmount, numInstallments, startDate are required",
+      });
+    }
+
+    const start = new Date(startDate);
+    if (Number.isNaN(start.getTime())) {
+      return res.status(400).json({ message: "Invalid startDate" });
+    }
+
+    const emiAmount = Number(totalAmount) / Number(numInstallments);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const emi = await tx.eMI.create({
+        data: {
+          userId,
+          title,
+          type: type || "LOAN",
+          totalAmount,
+          numInstallments,
+          emiAmount,
+          startDate: start,
+          linkedLoanId: linkedLoanId || null,
+        },
+      });
+
+      const schedules = Array.from({ length: Number(numInstallments) }).map(
+        (_, i) => ({
+          emiId: emi.id,
+          userId,
+          dueDate: addMonths(start, i),
+          amount: emiAmount,
+        })
+      );
+
+      if (schedules.length) {
+        await tx.eMISchedule.createMany({ data: schedules });
+      }
+
+      return emi;
     });
 
-    // lock full EMI amount immediately
-    await applyBalanceChange(userId, -totalAmount);
-
-    res.json(emi);
+    res.json(result);
   } catch (err) {
     res
       .status(500)
@@ -41,27 +77,34 @@ export const createEMI = async (req, res) => {
   }
 };
 
-export const payEMIInstallment = async (req, res) => {
+// Pay next unpaid schedule for an EMI
+const payEMIInstallment = async (req, res) => {
   try {
-    const { emiId, amount } = req.body;
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const emi = await prisma.eMI.findUnique({ where: { id: emiId } });
-    if (!emi) return res.status(404).json({ error: "EMI not found" });
+    const { emiId } = req.body;
+    if (!emiId) return res.status(400).json({ message: "emiId is required" });
 
-    if (emi.remaininginstallments <= 0)
-      return res.status(400).json({ error: "All installments already paid" });
-
-    const updatedEMI = await prisma.eMI.update({
-      where: { id: emiId },
-      data: {
-        amountPaid: { increment: amount },
-        remaininginstallments: { decrement: 1 },
-      },
+    const nextSchedule = await prisma.eMISchedule.findFirst({
+      where: { emiId: Number(emiId), userId, paid: false },
+      orderBy: { dueDate: "asc" },
     });
 
-    await applyBalanceChange(emi.userId, -amount);
+    if (!nextSchedule) {
+      return res
+        .status(400)
+        .json({ error: "All installments already paid" });
+    }
 
-    res.json(updatedEMI);
+    const updated = await prisma.eMISchedule.update({
+      where: { id: nextSchedule.id },
+      data: { paid: true, paidAt: new Date() },
+    });
+
+    await applyBalanceChange(userId, -Number(nextSchedule.amount));
+
+    res.json(updated);
   } catch (err) {
     res
       .status(500)
@@ -69,13 +112,15 @@ export const payEMIInstallment = async (req, res) => {
   }
 };
 
-export const getAllEMIs = async (req, res) => {
+const getAllEMIs = async (req, res) => {
   try {
-    const userId = req.user?.userId ?? req.user?.id;
+    const userId = getUserId(req);
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     const emis = await prisma.eMI.findMany({
       where: { userId },
+      include: { schedules: true, loan: true },
+      orderBy: { createdAt: "desc" },
     });
     res.json(emis);
   } catch (err) {
@@ -85,20 +130,21 @@ export const getAllEMIs = async (req, res) => {
   }
 };
 
-export const deleteEMI = async (req, res) => {
+const deleteEMI = async (req, res) => {
   try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
     const { id } = req.params;
-    const emi = await prisma.eMI.findUnique({ where: { id: parseInt(id) } });
+    const emi = await prisma.eMI.findFirst({
+      where: { id: parseInt(id), userId },
+    });
     if (!emi) return res.status(404).json({ error: "EMI not found" });
 
-    const remaining = emi.totalAmount - emi.amountPaid;
-
-    await prisma.eMI.delete({ where: { id: parseInt(id) } });
-
-    // refund remaining to user balance
-    if (remaining > 0) {
-      await applyBalanceChange(emi.userId, remaining);
-    }
+    await prisma.$transaction(async (tx) => {
+      await tx.eMISchedule.deleteMany({ where: { emiId: emi.id } });
+      await tx.eMI.delete({ where: { id: emi.id } });
+    });
 
     res.json({ message: "EMI deleted successfully" });
   } catch (err) {
@@ -106,4 +152,11 @@ export const deleteEMI = async (req, res) => {
       .status(500)
       .json({ error: "Failed to delete EMI", details: err.message });
   }
+};
+
+module.exports = {
+  createEMI,
+  payEMIInstallment,
+  getAllEMIs,
+  deleteEMI,
 };

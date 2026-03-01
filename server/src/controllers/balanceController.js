@@ -1,5 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../config/prismaClient");
 
 // Get current balance for the user
 async function getCurrentBalance(req, res) {

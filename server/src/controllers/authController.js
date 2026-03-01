@@ -16,6 +16,12 @@ exports.login = asyncHandler(async (req, res) => {
   res.json(result);
 });
 
+// POST /api/auth/google
+exports.googleLogin = asyncHandler(async (req, res) => {
+  const result = await authService.loginWithGoogle(req.body);
+  res.json(result);
+});
+
 // POST /api/auth/complete-profile
 exports.completeProfile = asyncHandler(async (req, res) => {
   const userId = getUserId(req);

@@ -1,6 +1,5 @@
 // utils/balanceUtils.js
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../config/prismaClient");
 const { monthKeyIST, getWeekOfMonth } = require("./datKeys");
 
 /**
@@ -23,7 +22,7 @@ const adjustUserBalance = async (userId, delta) => {
  */
 const updateBalance = async (userId, delta) => {
   const now = new Date();
-  const month = monthKeyIST(now); // e.g., "Sep-2025"
+  const month = monthKeyIST(now); // e.g., "2026-01"
   const week = getWeekOfMonth(now);
 
   let balanceRecord = await prisma.balance.findFirst({

@@ -1,7 +1,8 @@
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
+const prisma = require("../config/prismaClient");
 const { applyBalanceChange } = require("../utils/balanceUtils");
 const { monthKeyIST, getWeekOfMonth } = require("../utils/datKeys");
+
+const getUserId = (req) => req.user?.userId ?? req.user?.id;
 
 /**
  * Create a split expense
@@ -11,7 +12,18 @@ const { monthKeyIST, getWeekOfMonth } = require("../utils/datKeys");
  */
 const createSplitExpense = async (req, res) => {
   try {
-    const { userId, amount, tag, spentAt, splits } = req.body;
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    const { amount, tag, spentAt, splits, accountId, categoryId } = req.body;
+    if (!amount || !spentAt || !accountId || !categoryId) {
+      return res.status(400).json({
+        message: "amount, spentAt, accountId, categoryId are required",
+      });
+    }
+    if (!Array.isArray(splits) || splits.length === 0) {
+      return res.status(400).json({ message: "splits are required" });
+    }
 
     const month = monthKeyIST(new Date(spentAt));
     const week = getWeekOfMonth(new Date(spentAt));
@@ -22,10 +34,12 @@ const createSplitExpense = async (req, res) => {
         data: {
           userId,
           amount,
-          tag,
+          tag: tag || "General",
           spentAt: new Date(spentAt),
           month,
           week,
+          accountId,
+          categoryId,
         },
       });
 
@@ -73,8 +87,18 @@ const createSplitExpense = async (req, res) => {
  */
 const updateSplitExpense = async (req, res) => {
   try {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
     const { id } = req.params;
     const { splits } = req.body;
+
+    const expense = await prisma.expense.findFirst({
+      where: { id: parseInt(id), userId },
+      select: { id: true },
+    });
+    if (!expense)
+      return res.status(404).json({ error: "Split expense not found" });
 
     const existing = await prisma.splitExpense.findMany({
       where: { expenseId: parseInt(id) },
@@ -134,7 +158,10 @@ const updateSplitExpense = async (req, res) => {
  */
 const createMoneyLent = async (req, res) => {
   try {
-    const { lenderId, borrower, amount, purpose, dueDate } = req.body;
+    const lenderId = getUserId(req);
+    if (!lenderId) return res.status(401).json({ message: "Unauthorized" });
+
+    const { borrower, amount, purpose, dueDate } = req.body;
 
     const moneyLent = await prisma.moneyLent.create({
       data: {
@@ -161,6 +188,9 @@ const createMoneyLent = async (req, res) => {
  */
 const updateMoneyLent = async (req, res) => {
   try {
+    const lenderId = getUserId(req);
+    if (!lenderId) return res.status(401).json({ message: "Unauthorized" });
+
     const { id } = req.params;
     const { amount, ...rest } = req.body;
 
@@ -169,6 +199,8 @@ const updateMoneyLent = async (req, res) => {
     });
     if (!existing)
       return res.status(404).json({ error: "Money lent record not found" });
+    if (existing.lenderId !== lenderId)
+      return res.status(403).json({ error: "Forbidden" });
 
     const diff = amount !== undefined ? amount - existing.amount : 0;
 
@@ -198,7 +230,10 @@ const updateMoneyLent = async (req, res) => {
  */
 const createMoneyBorrowed = async (req, res) => {
   try {
-    const { borrowerId, lender, amount, purpose, dueDate } = req.body;
+    const borrowerId = getUserId(req);
+    if (!borrowerId) return res.status(401).json({ message: "Unauthorized" });
+
+    const { lender, amount, purpose, dueDate } = req.body;
 
     const moneyBorrowed = await prisma.moneyBorrowed.create({
       data: {
@@ -225,6 +260,9 @@ const createMoneyBorrowed = async (req, res) => {
  */
 const updateMoneyBorrowed = async (req, res) => {
   try {
+    const borrowerId = getUserId(req);
+    if (!borrowerId) return res.status(401).json({ message: "Unauthorized" });
+
     const { id } = req.params;
     const { amount, ...rest } = req.body;
 
@@ -233,6 +271,8 @@ const updateMoneyBorrowed = async (req, res) => {
     });
     if (!existing)
       return res.status(404).json({ error: "Money borrowed record not found" });
+    if (existing.borrowerId !== borrowerId)
+      return res.status(403).json({ error: "Forbidden" });
 
     const diff = amount !== undefined ? amount - existing.amount : 0;
 

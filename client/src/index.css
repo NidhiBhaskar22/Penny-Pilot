@@ -1,13 +1,47 @@
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global theme colors */
+:root {
+  --pp-ink: #02062a;      /* Deep Blue Background */
+  --pp-teal: #22c0ff;     /* Electric Cyan */
+  --pp-mist: #e5eeff;     /* Cool Mist Text */
+  --pp-sand: #9fd8ff;     /* Ice Accent */
+  --pp-peach: #b39cff;    /* Violet Accent */
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--pp-ink);
+  color: var(--pp-mist);
+  background-image:
+    radial-gradient(circle at 25% 25%, rgba(0, 194, 255, 0.13) 0%, transparent 36%),
+    radial-gradient(circle at 65% 75%, rgba(144, 106, 255, 0.12) 0%, transparent 35%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(76, 128, 255, 0.05) 0px,
+      rgba(76, 128, 255, 0.05) 1px,
+      transparent 1px,
+      transparent 44px
+    );
+}
+
+/* Header-specific font */
+h1, h2, h3, .font-bold {
+  font-family: "Montserrat", sans-serif;
+}
+
+@layer components {
+  .quantum-card {
+    @apply border border-white/10 bg-[#0a0e0c]/60 backdrop-blur-md shadow-2xl;
+  }
+}
+
+@keyframes orbs {
+  0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.4; }
+  50% { transform: translate3d(15px, -15px, 0); opacity: 0.6; }
 }

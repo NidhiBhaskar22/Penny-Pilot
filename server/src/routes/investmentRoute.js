@@ -19,7 +19,4 @@ router.get("/:month", getInvestmentsByMonth); // dynamic AFTER fixed
 router.put("/:id", updateInvestment);
 router.delete("/:id", deleteInvestment);
 
-// Profit summary endpoint
-router.get("/profit-summary", getProfitSummary);
-
 module.exports = router;

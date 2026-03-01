@@ -1,5 +1,5 @@
 // controllers/limitsController.js
-const prisma = require("../prismaClient");
+const prisma = require("../config/prismaClient");
 
 
 exports.createLimit = async (req, res) => {

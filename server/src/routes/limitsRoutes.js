@@ -2,17 +2,17 @@ const express = require("express");
 const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const {
-  createLimits,
+  createLimit,
   getLimits,
-  updateLimits,
-  deleteLimits,
+  updateLimit,
+  deleteLimit,
 } = require("../controllers/limitsController");
 
 router.use(authMiddleware);
 
-router.post("/", createLimits);
+router.post("/", createLimit);
 router.get("/", getLimits);
-router.put("/:id", updateLimits);
-router.delete("/:id", deleteLimits);
+router.put("/:id", updateLimit);
+router.delete("/:id", deleteLimit);
 
 module.exports = router;

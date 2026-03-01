@@ -6,7 +6,7 @@ const { getNormalDashboard, getAdvancedDashboard } = require("../controllers/das
 
 router.use(authMiddleware);
 
-router.get("/normal", authMiddleware, getNormalDashboard);
-router.get("/advanced", authMiddleware, getAdvancedDashboard);
+router.get("/normal", getNormalDashboard);
+router.get("/advanced", getAdvancedDashboard);
 
 module.exports = router;

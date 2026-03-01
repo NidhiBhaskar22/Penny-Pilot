@@ -4,6 +4,14 @@ const { ApiError } = require("../middleware/errorMiddleware");
 const { monthKeyIST, getWeekOfMonth } = require("../utils/datKeys");
 const { applyBalanceChange } = require("../utils/balanceUtils");
 
+const METHOD_TYPES = new Set(["NET_BANKING", "UPI", "CASH", "DEBIT_CARD", "CREDIT_CARD"]);
+
+function normalizeType(type) {
+  return String(type || "")
+    .trim()
+    .toUpperCase();
+}
+
 function computeMonth(date) {
   if (typeof monthKeyIST === "function") return monthKeyIST(date);
   const y = date.getFullYear();
@@ -18,14 +26,89 @@ function computeWeek(date) {
   return Math.ceil(day / 7);
 }
 
-async function createExpense(userId, payload) {
-  const { amount, tag, spentAt, accountId, categoryId } = payload;
+async function ensureAccount(userId) {
+  let account = await prisma.account.findFirst({
+    where: { userId, isActive: true, type: "BANK", parentId: null },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!account) {
+    account = await prisma.account.create({
+      data: {
+        userId,
+        name: "Primary Bank",
+        type: "BANK",
+        balance: 0,
+      },
+    });
+  }
+  return account;
+}
 
-  if (!amount || !spentAt || !accountId || !categoryId) {
+async function resolveBankAccount(userId, accountId) {
+  const lookupId = accountId != null ? Number(accountId) : null;
+  if (!lookupId) return ensureAccount(userId);
+
+  const account = await prisma.account.findFirst({
+    where: { id: lookupId, userId, isActive: true },
+  });
+  if (!account) throw new ApiError(404, "Account not found");
+  if (normalizeType(account.type) !== "BANK" || account.parentId != null) {
+    throw new ApiError(400, "accountId must be a BANK account");
+  }
+  return account;
+}
+
+async function resolvePaymentMethod(userId, bankAccountId, paymentMethodId) {
+  if (paymentMethodId != null) {
+    const method = await prisma.account.findFirst({
+      where: {
+        id: Number(paymentMethodId),
+        userId,
+        isActive: true,
+        parentId: bankAccountId,
+      },
+    });
+    if (!method) throw new ApiError(404, "Payment method not found for selected account");
+    if (!METHOD_TYPES.has(normalizeType(method.type))) {
+      throw new ApiError(400, "Selected payment method is invalid");
+    }
+    return method;
+  }
+
+  const fallback = await prisma.account.findFirst({
+    where: { userId, isActive: true, parentId: bankAccountId },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!fallback) {
     throw new ApiError(
       400,
-      "amount, spentAt, accountId and categoryId are required"
+      "No payment method configured for this account. Add UPI/Cash/Card/Net Banking in Accounts page"
     );
+  }
+  if (!METHOD_TYPES.has(normalizeType(fallback.type))) {
+    throw new ApiError(400, "Selected payment method is invalid");
+  }
+  return fallback;
+}
+
+async function ensureCategory(userId, name) {
+  const categoryName = name || "General";
+  let category = await prisma.category.findFirst({
+    where: { userId, name: categoryName },
+  });
+  if (!category) {
+    category = await prisma.category.create({
+      data: { userId, name: categoryName, type: "EXPENSE" },
+    });
+  }
+  return category;
+}
+
+async function createExpense(userId, payload) {
+  const { amount, tag, spentAt, accountId, paymentMethodId, categoryId, paidTo } = payload;
+
+  if (!amount || !spentAt) {
+    throw new ApiError(400, "amount and spentAt are required");
   }
 
   const spentDate = new Date(spentAt);
@@ -36,16 +119,28 @@ async function createExpense(userId, payload) {
   const month = computeMonth(spentDate);
   const week = computeWeek(spentDate);
 
+  const account =
+    accountId != null ? await resolveBankAccount(userId, accountId) : await ensureAccount(userId);
+  const paymentMethod = await resolvePaymentMethod(userId, account.id, paymentMethodId);
+
+  const category =
+    categoryId != null
+      ? await prisma.category.findFirst({ where: { id: categoryId, userId } })
+      : await ensureCategory(userId, tag);
+  if (!category) throw new ApiError(404, "Category not found");
+
   const expense = await prisma.expense.create({
     data: {
       userId,
       amount,
       tag: tag || "General",
+      paidTo: paidTo || null,
       spentAt: spentDate,
       month,
       week,
-      accountId,
-      categoryId,
+      accountId: account.id,
+      paymentMethodId: paymentMethod.id,
+      categoryId: category.id,
     },
   });
 
@@ -84,6 +179,34 @@ async function updateExpense(userId, expenseId, payload) {
   if (payload.amount !== undefined && payload.amount !== null) {
     diff = Number(payload.amount) - Number(existing.amount);
     data.amount = payload.amount;
+  }
+
+  if (payload.accountId != null) {
+    const account = await resolveBankAccount(userId, payload.accountId);
+    data.accountId = account.id;
+  }
+
+  const effectiveAccountId = data.accountId || existing.accountId;
+  const accountChanged = payload.accountId != null;
+  if (payload.paymentMethodId != null || accountChanged) {
+    const paymentMethod = await resolvePaymentMethod(
+      userId,
+      effectiveAccountId,
+      payload.paymentMethodId != null ? payload.paymentMethodId : existing.paymentMethodId
+    );
+    data.paymentMethodId = paymentMethod.id;
+  }
+
+  if (payload.categoryId != null) {
+    const category = await prisma.category.findFirst({
+      where: { id: payload.categoryId, userId },
+    });
+    if (!category) throw new ApiError(404, "Category not found");
+    data.categoryId = category.id;
+  }
+
+  if (payload.paidTo !== undefined) {
+    data.paidTo = payload.paidTo || null;
   }
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -130,6 +253,7 @@ async function getAllExpenses(userId) {
     orderBy: { spentAt: "desc" },
     include: {
       account: true,
+      paymentMethod: true,
       category: true,
       splitExpenses: true,
     },
@@ -160,6 +284,7 @@ async function getExpensesByMonth(userId, month, summaryOnly = false) {
     orderBy: { spentAt: "desc" },
     include: {
       account: true,
+      paymentMethod: true,
       category: true,
       splitExpenses: true,
     },
