@@ -3,21 +3,21 @@ import axiosClient from "../../api/axiosClient";
 
 const ExpenseForm = ({ isOpen, onClose, expense }) => {
   const [amount, setAmount] = useState("");
-  const [tag, setTag] = useState("");
   const [paidTo, setPaidTo] = useState("");
   const [spentAt, setSpentAt] = useState("");
   const [accountId, setAccountId] = useState("");
-  const [paymentMethodId, setPaymentMethodId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [accounts, setAccounts] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
-  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
     if (expense) {
       setAmount(expense.amount);
-      setTag(expense.tag || "");
       setPaidTo(expense.paidTo || "");
       setSpentAt(
         expense.spentAt
@@ -25,16 +25,19 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
           : ""
       );
       setAccountId(expense.accountId ? String(expense.accountId) : "");
-      setPaymentMethodId(expense.paymentMethodId ? String(expense.paymentMethodId) : "");
-      setCategoryId(expense.categoryId || "");
+      setPaymentMethod(expense.paymentMethod || "");
+      setCategoryId(expense.categoryId ? String(expense.categoryId) : "");
+      setShowCategoryModal(false);
+      setNewCategoryName("");
     } else {
       setAmount("");
-      setTag("");
       setPaidTo("");
       setSpentAt("");
       setAccountId("");
-      setPaymentMethodId("");
+      setPaymentMethod("");
       setCategoryId("");
+      setShowCategoryModal(false);
+      setNewCategoryName("");
     }
   }, [expense]);
 
@@ -43,24 +46,27 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
     let cancelled = false;
     const loadAccounts = async () => {
       try {
-        const res = await axiosClient.get("/accounts");
-        const rows = Array.isArray(res.data) ? res.data : [];
-        const banks = rows.filter(
-          (a) => String(a.type).toUpperCase() === "BANK" && a.parentId == null
-        );
-        const methods = rows.filter(
-          (a) => String(a.type).toUpperCase() !== "BANK" && a.parentId != null
-        );
+        const [accountsRes, categoriesRes] = await Promise.all([
+          axiosClient.get("/accounts"),
+          axiosClient.get("/categories", {
+            params: { type: "EXPENSE", sortBy: "name", order: "asc" },
+          }),
+        ]);
+        const rows = Array.isArray(accountsRes.data) ? accountsRes.data : [];
+        const banks = rows;
+        const categoryRows = Array.isArray(categoriesRes.data) ? categoriesRes.data : [];
         if (!cancelled) {
-          setAccounts(rows);
           setBankAccounts(banks);
-          setPaymentMethods(methods);
+          setCategories(categoryRows);
           if (!expense && !accountId && banks.length === 1) {
             setAccountId(String(banks[0].id));
           }
         }
       } catch (error) {
-        if (!cancelled) setAccounts([]);
+        if (!cancelled) {
+          setBankAccounts([]);
+          setCategories([]);
+        }
       }
     };
     loadAccounts();
@@ -71,21 +77,22 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
 
   useEffect(() => {
     if (!isOpen || !accountId) return;
-    const methodsForBank = paymentMethods.filter((m) => String(m.parentId) === String(accountId));
+    const selected = bankAccounts.find((b) => String(b.id) === String(accountId));
+    const methodsForBank = selected?.enabledMethods || [];
     if (!methodsForBank.length) {
-      setPaymentMethodId("");
+      setPaymentMethod("");
       return;
     }
-    const valid = methodsForBank.some((m) => String(m.id) === String(paymentMethodId));
+    const valid = methodsForBank.includes(paymentMethod);
     if (!valid) {
-      setPaymentMethodId(String(methodsForBank[0].id));
+      setPaymentMethod(methodsForBank[0]);
     }
-  }, [isOpen, accountId, paymentMethods, paymentMethodId]);
+  }, [isOpen, accountId, bankAccounts, paymentMethod]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setNotice("");
-    if (!amount || !tag || !paidTo || !spentAt) {
+    if (!amount || !spentAt) {
       setNotice("Please fill all required fields");
       return;
     }
@@ -93,18 +100,30 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
       setNotice("Please select account");
       return;
     }
-    if (!paymentMethodId) {
+    if (!paymentMethod) {
       setNotice("Please select payment method");
       return;
     }
+    let resolvedCategoryId = categoryId;
+    if (!resolvedCategoryId) {
+      try {
+        const res = await axiosClient.post("/categories", {
+          name: "General",
+          type: "EXPENSE",
+        });
+        resolvedCategoryId = String(res.data?.id || "");
+      } catch (error) {
+        setNotice(error?.response?.data?.message || "Failed to resolve category");
+        return;
+      }
+    }
     const data = {
       amount: Number(amount),
-      tag,
       paidTo,
       spentAt,
       accountId: Number(accountId),
-      paymentMethodId: Number(paymentMethodId),
-      ...(categoryId ? { categoryId: Number(categoryId) } : {}),
+      paymentMethod,
+      ...(resolvedCategoryId ? { categoryId: Number(resolvedCategoryId) } : {}),
     };
     try {
       if (expense) {
@@ -118,10 +137,37 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
     }
   };
 
+  const createCategoryFromModal = async () => {
+    const name = newCategoryName.trim();
+    if (!name) {
+      setNotice("Enter a category name");
+      return;
+    }
+    setNotice("");
+    setCreatingCategory(true);
+    try {
+      const res = await axiosClient.post("/categories", { name, type: "EXPENSE" });
+      const created = res.data;
+      const createdId = String(created?.id || "");
+      if (!createdId) throw new Error("Invalid category response");
+      setCategories((prev) => {
+        const exists = prev.some((c) => String(c.id) === createdId);
+        if (exists) return prev;
+        return [...prev, created].sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      });
+      setCategoryId(createdId);
+      setNewCategoryName("");
+      setShowCategoryModal(false);
+    } catch (error) {
+      setNotice(error?.response?.data?.message || "Failed to create category");
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
   if (!isOpen) return null;
-  const methodsForSelectedAccount = paymentMethods.filter(
-    (m) => String(m.parentId) === String(accountId)
-  );
+  const methodsForSelectedAccount =
+    bankAccounts.find((b) => String(b.id) === String(accountId))?.enabledMethods || [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -149,16 +195,26 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">Category Tag</label>
+            <label className="mb-1 block text-sm font-medium">Category</label>
             <select
               className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
-              value={tag}
-              onChange={(e) => setTag(e.target.value)}
+              value={categoryId}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (next === "__add_new__") {
+                  setShowCategoryModal(true);
+                  return;
+                }
+                setCategoryId(next);
+              }}
             >
-              <option value="">Select</option>
-              <option value="Food">Food</option>
-              <option value="Transport">Transport</option>
-              <option value="Groceries">Groceries</option>
+              <option value="">Choose a Category</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+              <option value="__add_new__">+ Add New</option>
             </select>
           </div>
 
@@ -203,14 +259,14 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
             <label className="mb-1 block text-sm font-medium">Payment Method</label>
             <select
               className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
-              value={paymentMethodId}
-              onChange={(e) => setPaymentMethodId(e.target.value)}
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
               disabled={!accountId}
             >
               <option value="">Select method</option>
               {methodsForSelectedAccount.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} ({m.type})
+                <option key={m} value={m}>
+                  {m.replaceAll("_", " ")}
                 </option>
               ))}
             </select>
@@ -232,11 +288,44 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
             </button>
           </div>
         </form>
+        {showCategoryModal ? (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/60 p-4">
+            <div className="w-full max-w-sm rounded-xl border border-[#3a63b5]/45 bg-[rgba(4,12,46,0.98)] p-4">
+              <div className="mb-3 text-sm font-semibold text-mist">Create Category</div>
+              <input
+                type="text"
+                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
+                placeholder="Category name"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+              />
+              <div className="mt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold text-mist"
+                  onClick={() => {
+                    setShowCategoryModal(false);
+                    setNewCategoryName("");
+                  }}
+                  disabled={creatingCategory}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-[#22c0ff] px-3 py-2 text-xs font-semibold text-[#03102e] disabled:opacity-60"
+                  onClick={createCategoryFromModal}
+                  disabled={creatingCategory}
+                >
+                  {creatingCategory ? "Adding..." : "Add"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
 };
 
 export default ExpenseForm;
-
-

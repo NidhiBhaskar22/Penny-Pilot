@@ -28,27 +28,89 @@ function AnimatedNumber({ value = 0, fmt = (v) => v.toLocaleString() }) {
 }
 
 const InvestmentPage = () => {
+  const DEFAULT_PAGE_SIZE = 10;
+  const METHOD_OPTIONS = ["NET_BANKING", "UPI", "CASH", "DEBIT_CARD", "CREDIT_CARD"];
   const [investments, setInvestments] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedInvestment, setSelectedInvestment] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [q, setQ] = useState("");
+  const [month, setMonth] = useState("");
+  const [type, setType] = useState("");
+  const [accountId, setAccountId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [sortBy, setSortBy] = useState("investedAt");
+  const [sortOrder, setSortOrder] = useState("desc");
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    pageSize: DEFAULT_PAGE_SIZE,
+    totalPages: 0,
+  });
 
-  const fetchInvestments = async () => {
+  const fetchInvestments = async (targetPage = page) => {
     setLoading(true);
     try {
-      const res = await axiosClient.get("/investments");
-      const rows = Array.isArray(res.data) ? res.data : res.data?.investments || [];
+      const res = await axiosClient.get("/investments", {
+        params: {
+          page: targetPage,
+          pageSize,
+          q: q || undefined,
+          month: month || undefined,
+          type: type || undefined,
+          accountId: accountId || undefined,
+          paymentMethod: paymentMethod || undefined,
+          sortBy,
+          sortOrder,
+        },
+      });
+      const payload = res.data;
+      const rows = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.items)
+        ? payload.items
+        : res.data?.investments || [];
+
+      const nextPagination = {
+        total: Number(payload?.total ?? rows.length),
+        page: Number(payload?.page ?? targetPage),
+        pageSize: Number(payload?.pageSize ?? pageSize),
+        totalPages: Number(payload?.totalPages ?? (rows.length ? 1 : 0)),
+      };
+
+      if (nextPagination.totalPages > 0 && nextPagination.page > nextPagination.totalPages) {
+        setPage(nextPagination.totalPages);
+        return;
+      }
+
       setInvestments(rows);
+      setPagination(nextPagination);
     } catch (e) {
       console.error("Failed to load investments", e);
       setInvestments([]);
+      setPagination({ total: 0, page: targetPage, pageSize, totalPages: 0 });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchInvestments();
+    fetchInvestments(page);
+  }, [page, pageSize, q, month, type, accountId, paymentMethod, sortBy, sortOrder]);
+
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      try {
+        const accRes = await axiosClient.get("/accounts");
+        setAccounts(Array.isArray(accRes.data) ? accRes.data : []);
+      } catch (error) {
+        console.error("Failed to load investment filters", error);
+      }
+    };
+    loadFilterOptions();
   }, []);
 
   const onEdit = (investment) => {
@@ -61,13 +123,13 @@ const InvestmentPage = () => {
   };
   const onFormClose = () => {
     setIsOpen(false);
-    fetchInvestments();
+    fetchInvestments(page);
   };
 
   const handleDelete = async (id) => {
     try {
       await axiosClient.delete(`/investments/${id}`);
-      fetchInvestments();
+      fetchInvestments(page);
     } catch (err) {
       console.error("Failed to delete investment", err.response?.status, err.response?.data || err.message);
     }
@@ -116,12 +178,156 @@ const InvestmentPage = () => {
           </TechCard>
         </div>
 
+        <div className="mb-6 rounded-xl border border-[#3a63b5]/30 bg-[rgba(4,12,46,0.55)] p-3">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-mist/70">Filters</div>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-4 xl:grid-cols-8">
+            <input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            />
+            <input
+              type="month"
+              value={month}
+              onChange={(e) => {
+                setMonth(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            />
+            <input
+              value={type}
+              onChange={(e) => {
+                setType(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Type"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            />
+            <select
+              value={accountId}
+              onChange={(e) => {
+                setAccountId(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            >
+              <option value="">Account</option>
+              {accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={paymentMethod}
+              onChange={(e) => {
+                setPaymentMethod(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            >
+              <option value="">Method</option>
+              {METHOD_OPTIONS.map((method) => (
+                <option key={method} value={method}>
+                  {method.replaceAll("_", " ")}
+                </option>
+              ))}
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            >
+              <option value="investedAt">Date</option>
+              <option value="amount">Amount</option>
+              <option value="instrument">Instrument</option>
+              <option value="month">Month</option>
+              <option value="roi">ROI</option>
+            </select>
+            <select
+              value={sortOrder}
+              onChange={(e) => {
+                setSortOrder(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            >
+              <option value="desc">Desc</option>
+              <option value="asc">Asc</option>
+            </select>
+            <div className="flex gap-2">
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="w-full rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  setQ("");
+                  setMonth("");
+                  setType("");
+                  setAccountId("");
+                  setPaymentMethod("");
+                  setSortBy("investedAt");
+                  setSortOrder("desc");
+                  setPageSize(DEFAULT_PAGE_SIZE);
+                  setPage(1);
+                }}
+                className="rounded-md border border-[#4f87df]/40 px-3 py-2 text-sm font-semibold text-mist/90"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+
         {loading ? (
           <div className="flex items-center justify-center py-20 text-mist">Loading...</div>
         ) : (
-          <TechCard>
-            <InvestmentList investments={investments} onEdit={onEdit} onDelete={handleDelete} />
-          </TechCard>
+          <>
+            <TechCard>
+              <InvestmentList investments={investments} onEdit={onEdit} onDelete={handleDelete} />
+            </TechCard>
+            <div className="mt-4 flex items-center justify-between text-sm text-mist/80">
+              <div>
+                Page {pagination.page} of {pagination.totalPages || 1} • Total {pagination.total} entries
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="rounded-md border border-[#4f87df]/40 px-3 py-1.5 disabled:opacity-50"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-[#4f87df]/40 px-3 py-1.5 disabled:opacity-50"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={pagination.totalPages === 0 || page >= pagination.totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         {isOpen && (

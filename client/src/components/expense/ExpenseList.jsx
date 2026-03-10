@@ -41,19 +41,14 @@ export default function ExpenseList({ expenses, onEdit, onDelete }) {
             >
               <td className="px-4 py-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sand text-brand-900 font-semibold">
-                  {String(exp.category?.name || exp.tag || "E")[0].toUpperCase()}
+                  {String(exp.category?.name || "E")[0].toUpperCase()}
                 </div>
               </td>
               <td className="px-4 py-4">
                 <div className="text-xs text-peach">{fmtDate(exp)}</div>
                 <div className="font-semibold text-mist">
-                  {exp.category?.name || exp.tag || "Expense"}
+                  {exp.category?.name || "Expense"}
                 </div>
-                {exp.tag ? (
-                  <span className="mt-2 inline-block rounded bg-peach px-2 py-0.5 text-[10px] font-semibold text-brand-900">
-                    {exp.tag}
-                  </span>
-                ) : null}
               </td>
               <td className="px-4 py-4">
                 <div className="font-semibold text-mist">{exp.paidTo || "-"}</div>
@@ -69,7 +64,7 @@ export default function ExpenseList({ expenses, onEdit, onDelete }) {
               <td className="px-4 py-4 font-semibold text-mist">
                 {exp.account?.name || "-"}
                 <div className="text-xs font-normal text-mist/70">
-                  {exp.paymentMethod?.type || "-"}
+                  {exp.paymentMethod || "-"}
                 </div>
               </td>
               <td className="px-4 py-4 font-semibold text-peach">

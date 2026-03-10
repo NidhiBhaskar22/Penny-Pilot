@@ -1,34 +1,75 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import axiosClient from "../../api/axiosClient";
+
+const DEFAULT_RESOURCES = [
+  "RELIANCE",
+  "TCS",
+  "INFY",
+  "HDFCBANK",
+  "ICICIBANK",
+  "NIFTY50 ETF",
+  "GOLD ETF",
+  "PPF",
+];
 
 const InvestmentForm = ({ isOpen, onClose, investment }) => {
   const [amount, setAmount] = useState("");
   const [instrument, setInstrument] = useState("");
   const [investedDate, setInvestedDate] = useState("");
   const [accountId, setAccountId] = useState("");
-  const [paymentMethodId, setPaymentMethodId] = useState("");
-  const [accounts, setAccounts] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [bankAccounts, setBankAccounts] = useState([]);
-  const [paymentMethods, setPaymentMethods] = useState([]);
+
+  const [resourceOptions, setResourceOptions] = useState(DEFAULT_RESOURCES);
+  const [selectedResource, setSelectedResource] = useState("");
+  const [showResourceModal, setShowResourceModal] = useState(false);
+  const [newResourceName, setNewResourceName] = useState("");
   const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("investment_resources");
+    if (!saved) return;
+    try {
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return;
+      const merged = Array.from(
+        new Set([...DEFAULT_RESOURCES, ...parsed.map((v) => String(v).trim()).filter(Boolean)])
+      ).sort();
+      setResourceOptions(merged);
+    } catch (_) {
+      // ignore malformed localStorage data
+    }
+  }, []);
 
   useEffect(() => {
     if (investment) {
       setAmount(investment.amount);
       setInstrument(investment.instrument || "");
       setAccountId(investment.accountId ? String(investment.accountId) : "");
-      setPaymentMethodId(investment.paymentMethodId ? String(investment.paymentMethodId) : "");
+      setPaymentMethod(investment.paymentMethod || "");
+      setSelectedResource(String(investment.details || ""));
       setInvestedDate(
         investment.investedAt ? new Date(investment.investedAt).toISOString().split("T")[0] : ""
       );
+      setShowResourceModal(false);
+      setNewResourceName("");
     } else {
       setAmount("");
       setInstrument("");
       setInvestedDate("");
       setAccountId("");
-      setPaymentMethodId("");
+      setPaymentMethod("");
+      setSelectedResource("");
+      setShowResourceModal(false);
+      setNewResourceName("");
     }
   }, [investment]);
+
+  useEffect(() => {
+    if (!selectedResource) return;
+    if (resourceOptions.includes(selectedResource)) return;
+    setResourceOptions((prev) => Array.from(new Set([...prev, selectedResource])).sort());
+  }, [selectedResource, resourceOptions]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -37,62 +78,89 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
       try {
         const res = await axiosClient.get("/accounts");
         const rows = Array.isArray(res.data) ? res.data : [];
-        const banks = rows.filter(
-          (a) => String(a.type).toUpperCase() === "BANK" && a.parentId == null
-        );
-        const methods = rows.filter(
-          (a) => String(a.type).toUpperCase() !== "BANK" && a.parentId != null
-        );
         if (!cancelled) {
-          setAccounts(rows);
-          setBankAccounts(banks);
-          setPaymentMethods(methods);
-          if (!investment && !accountId && banks.length === 1) {
-            setAccountId(String(banks[0].id));
+          setBankAccounts(rows);
+          if (!investment && !accountId && rows.length === 1) {
+            setAccountId(String(rows[0].id));
           }
         }
       } catch (error) {
-        if (!cancelled) setAccounts([]);
+        if (!cancelled) setBankAccounts([]);
       }
     };
     loadAccounts();
     return () => {
       cancelled = true;
     };
-  }, [isOpen, investment]);
+  }, [isOpen, investment, accountId]);
 
   useEffect(() => {
     if (!isOpen || !accountId) return;
-    const methodsForBank = paymentMethods.filter((m) => String(m.parentId) === String(accountId));
+    const selected = bankAccounts.find((b) => String(b.id) === String(accountId));
+    const methodsForBank = selected?.enabledMethods || [];
     if (!methodsForBank.length) {
-      setPaymentMethodId("");
+      setPaymentMethod("");
       return;
     }
-    const valid = methodsForBank.some((m) => String(m.id) === String(paymentMethodId));
+    const valid = methodsForBank.includes(paymentMethod);
     if (!valid) {
-      setPaymentMethodId(String(methodsForBank[0].id));
+      setPaymentMethod(methodsForBank[0]);
     }
-  }, [isOpen, accountId, paymentMethods, paymentMethodId]);
+  }, [isOpen, accountId, bankAccounts, paymentMethod]);
+
+  const addResourceOption = () => {
+    const normalized = String(newResourceName || "").trim().toUpperCase();
+    if (!normalized) {
+      setNotice("Enter resource name");
+      return;
+    }
+    const next = Array.from(new Set([...resourceOptions, normalized])).sort();
+    setResourceOptions(next);
+    localStorage.setItem("investment_resources", JSON.stringify(next));
+    setSelectedResource(normalized);
+    setShowResourceModal(false);
+    setNewResourceName("");
+    setNotice("");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setNotice("");
     try {
+      if (!amount || Number(amount) <= 0) {
+        setNotice("Please enter a valid amount");
+        return;
+      }
+      if (!instrument) {
+        setNotice("Please select instrument");
+        return;
+      }
+      if (!investedDate) {
+        setNotice("Please select date");
+        return;
+      }
       if (!accountId) {
         setNotice("Please select account");
         return;
       }
-      if (!paymentMethodId) {
+      if (!paymentMethod) {
         setNotice("Please select payment method");
         return;
       }
+      if (!selectedResource) {
+        setNotice("Please select resource");
+        return;
+      }
+
       const data = {
         amount: Number(amount),
         instrument,
         investedAt: investedDate,
         accountId: Number(accountId),
-        paymentMethodId: Number(paymentMethodId),
+        paymentMethod,
+        details: selectedResource,
       };
+
       if (investment) {
         await axiosClient.put(`/investments/${investment.id}`, data);
       } else {
@@ -105,9 +173,8 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
   };
 
   if (!isOpen) return null;
-  const methodsForSelectedAccount = paymentMethods.filter(
-    (m) => String(m.parentId) === String(accountId)
-  );
+  const methodsForSelectedAccount =
+    bankAccounts.find((b) => String(b.id) === String(accountId))?.enabledMethods || [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -132,6 +199,7 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
               className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
             />
           </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium">Instrument</label>
             <select
@@ -145,6 +213,31 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
               <option value="Lump-sum">Lump-sum</option>
             </select>
           </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium">Resource</label>
+            <select
+              value={selectedResource}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (next === "__add_new__") {
+                  setShowResourceModal(true);
+                  return;
+                }
+                setSelectedResource(next);
+              }}
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+            >
+              <option value="">Select resource</option>
+              {resourceOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+              <option value="__add_new__">+ Add New Resource</option>
+            </select>
+          </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium">Date</label>
             <input
@@ -154,6 +247,7 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
               className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
             />
           </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium">Account</label>
             <select
@@ -169,23 +263,25 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
               ))}
             </select>
           </div>
+
           <div>
             <label className="mb-1 block text-sm font-medium">Payment Method</label>
             <select
-              value={paymentMethodId}
-              onChange={(e) => setPaymentMethodId(e.target.value)}
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
               className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
               disabled={!accountId}
             >
               <option value="">Select method</option>
               {methodsForSelectedAccount.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} ({m.type})
+                <option key={m} value={m}>
+                  {m.replaceAll("_", " ")}
                 </option>
               ))}
             </select>
           </div>
         </form>
+
         <div className="mt-4 flex justify-end gap-2">
           <button
             type="button"
@@ -202,11 +298,43 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
             {investment ? "Update" : "Add"}
           </button>
         </div>
+
+        {showResourceModal ? (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/60 p-4">
+            <div className="w-full max-w-sm rounded-xl border border-[#3a63b5]/45 bg-[rgba(4,12,46,0.98)] p-4">
+              <div className="mb-3 text-sm font-semibold text-mist">Add Resource</div>
+              <input
+                type="text"
+                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
+                placeholder="e.g. TATAMOTORS / Smallcap Fund / Gold ETF"
+                value={newResourceName}
+                onChange={(e) => setNewResourceName(e.target.value)}
+              />
+              <div className="mt-3 flex justify-end gap-2">
+                <button
+                  type="button"
+                  className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold text-mist"
+                  onClick={() => {
+                    setShowResourceModal(false);
+                    setNewResourceName("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="rounded-lg bg-[#22c0ff] px-3 py-2 text-xs font-semibold text-[#03102e]"
+                  onClick={addResourceOption}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
 };
 
 export default InvestmentForm;
-
-

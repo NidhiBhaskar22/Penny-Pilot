@@ -40,7 +40,7 @@ exports.getAllExpenses = asyncHandler(async (req, res) => {
   const userId = getUserId(req);
   if (!userId) throw new ApiError(401, "Unauthorized");
 
-  const expenses = await expenseService.getAllExpenses(userId);
+  const expenses = await expenseService.getAllExpenses(userId, req.query);
   res.json(expenses);
 });
 

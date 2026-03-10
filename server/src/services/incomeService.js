@@ -2,6 +2,7 @@
 const prisma = require("../config/prismaClient");
 const { applyBalanceChange } = require("../utils/balanceUtils"); // you already had this
 const { ApiError } = require("../middleware/errorMiddleware");
+const { parsePagination, buildPaginatedResult } = require("../utils/pagination");
 
 const METHOD_TYPES = new Set(["NET_BANKING", "UPI", "CASH", "DEBIT_CARD", "CREDIT_CARD"]);
 
@@ -20,14 +21,11 @@ async function resolveBankAccount(userId, accountId) {
       where: { id: lookupId, userId, isActive: true },
     });
     if (!account) throw new ApiError(404, "Account not found");
-    if (normalizeType(account.type) !== "BANK" || account.parentId != null) {
-      throw new ApiError(400, "accountId must be a BANK account");
-    }
     return account;
   }
 
   account = await prisma.account.findFirst({
-    where: { userId, isActive: true, type: "BANK", parentId: null },
+    where: { userId, isActive: true },
     orderBy: { createdAt: "asc" },
   });
   if (!account) {
@@ -35,7 +33,6 @@ async function resolveBankAccount(userId, accountId) {
       data: {
         userId,
         name: "Primary Bank",
-        type: "BANK",
         balance: 0,
       },
     });
@@ -43,37 +40,23 @@ async function resolveBankAccount(userId, accountId) {
   return account;
 }
 
-async function resolvePaymentMethod(userId, bankAccountId, paymentMethodId) {
-  if (paymentMethodId != null) {
-    const method = await prisma.account.findFirst({
-      where: {
-        id: Number(paymentMethodId),
-        userId,
-        isActive: true,
-        parentId: bankAccountId,
-      },
-    });
-    if (!method) throw new ApiError(404, "Payment method not found for selected account");
-    if (!METHOD_TYPES.has(normalizeType(method.type))) {
-      throw new ApiError(400, "Selected payment method is invalid");
-    }
-    return method;
+async function resolvePaymentMethod(userId, bankAccountId, paymentMethod) {
+  const normalized = normalizeType(paymentMethod);
+  if (!METHOD_TYPES.has(normalized)) {
+    throw new ApiError(400, "Invalid paymentMethod");
   }
 
-  const fallback = await prisma.account.findFirst({
-    where: { userId, isActive: true, parentId: bankAccountId },
-    orderBy: { createdAt: "asc" },
+  const enabled = await prisma.accountMethod.findFirst({
+    where: {
+      accountId: bankAccountId,
+      account: { userId, isActive: true },
+      method: normalized,
+    },
   });
-  if (!fallback) {
-    throw new ApiError(
-      400,
-      "No payment method configured for this account. Add UPI/Cash/Card/Net Banking in Accounts page"
-    );
+  if (!enabled) {
+    throw new ApiError(400, "Selected payment method is not enabled for this account");
   }
-  if (!METHOD_TYPES.has(normalizeType(fallback.type))) {
-    throw new ApiError(400, "Selected payment method is invalid");
-  }
-  return fallback;
+  return normalized;
 }
 
 function getISTDateParts(date) {
@@ -112,19 +95,6 @@ async function ensureIncomeAccount(userId) {
   return resolveBankAccount(userId, null);
 }
 
-async function ensureIncomeCategory(userId, source) {
-  const name = String(source || "Income").trim() || "Income";
-  let category = await prisma.category.findFirst({
-    where: { userId, name, type: "INCOME" },
-  });
-  if (!category) {
-    category = await prisma.category.create({
-      data: { userId, name, type: "INCOME" },
-    });
-  }
-  return category;
-}
-
 async function createIncome(userId, payload) {
   const {
     amount,
@@ -132,7 +102,7 @@ async function createIncome(userId, payload) {
     tag,
     creditedAt,
     accountId,
-    paymentMethodId,
+    paymentMethod,
     categoryId,
     salaryBreakdown,
   } = payload;
@@ -150,28 +120,29 @@ async function createIncome(userId, payload) {
 
   const account =
     accountId != null ? await resolveBankAccount(userId, accountId) : await ensureIncomeAccount(userId);
-  const paymentMethod = await resolvePaymentMethod(userId, account.id, paymentMethodId);
+  const selectedPaymentMethod = await resolvePaymentMethod(userId, account.id, paymentMethod);
 
-  const category =
-    categoryId != null
-      ? await prisma.category.findFirst({
-          where: { id: Number(categoryId), userId },
-        })
-      : await ensureIncomeCategory(userId, source);
-  if (!category) throw new ApiError(404, "Category not found");
+  let resolvedCategoryId = null;
+  if (categoryId != null) {
+    const category = await prisma.category.findFirst({
+      where: { id: Number(categoryId), userId, type: "INCOME" },
+    });
+    if (!category) throw new ApiError(404, "Category not found");
+    resolvedCategoryId = category.id;
+  }
 
   const income = await prisma.income.create({
     data: {
       userId,
       amount,
       source: source || "Other",
-      tag: tag || null,
+      tag: tag ? String(tag).trim() || null : null,
       creditedAt: creditedDate,
       month,
       salaryBreakdown: salaryBreakdown || null,
       accountId: account.id,
-      paymentMethodId: paymentMethod.id,
-      categoryId: category.id,
+      paymentMethod: selectedPaymentMethod,
+      categoryId: resolvedCategoryId,
     },
   });
 
@@ -224,21 +195,27 @@ async function updateIncome(userId, incomeId, payload) {
 
   const effectiveAccountId = data.accountId || existing.accountId;
   const accountChanged = payload.accountId != null;
-  if (payload.paymentMethodId != null || accountChanged) {
-    const paymentMethod = await resolvePaymentMethod(
+  if (payload.paymentMethod != null || accountChanged) {
+    const selectedPaymentMethod = await resolvePaymentMethod(
       userId,
       effectiveAccountId,
-      payload.paymentMethodId != null ? payload.paymentMethodId : existing.paymentMethodId
+      payload.paymentMethod != null ? payload.paymentMethod : existing.paymentMethod
     );
-    data.paymentMethodId = paymentMethod.id;
+    data.paymentMethod = selectedPaymentMethod;
   }
 
   if (payload.categoryId != null) {
     const category = await prisma.category.findFirst({
-      where: { id: Number(payload.categoryId), userId },
+      where: { id: Number(payload.categoryId), userId, type: "INCOME" },
     });
     if (!category) throw new ApiError(404, "Category not found");
     data.categoryId = category.id;
+  } else if (payload.categoryId === null) {
+    data.categoryId = null;
+  }
+
+  if (payload.tag !== undefined) {
+    data.tag = payload.tag ? String(payload.tag).trim() || null : null;
   }
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -279,15 +256,60 @@ async function deleteIncome(userId, incomeId) {
   return { message: "Income deleted successfully" };
 }
 
-async function getAllIncomes(userId) {
-  return prisma.income.findMany({
-    where: { userId },
-    orderBy: { creditedAt: "desc" },
-    include: {
-      account: true,
-      paymentMethod: true,
-      category: true,
-    },
+async function getAllIncomes(userId, query = {}) {
+  const month = typeof query.month === "string" ? query.month.trim() : "";
+  const paymentMethod = typeof query.paymentMethod === "string" ? normalizeType(query.paymentMethod) : "";
+  const source = typeof query.source === "string" ? query.source.trim() : "";
+  const q = typeof query.q === "string" ? query.q.trim() : "";
+  const accountId = Number(query.accountId);
+  const categoryId = Number(query.categoryId);
+  const sortOrder = String(query.sortOrder || "desc").toLowerCase() === "asc" ? "asc" : "desc";
+  const sortByRaw = String(query.sortBy || "creditedAt");
+  const allowedSort = new Set(["creditedAt", "amount", "source", "month"]);
+  const sortBy = allowedSort.has(sortByRaw) ? sortByRaw : "creditedAt";
+
+  const { page, pageSize, skip, take } = parsePagination(query, {
+    defaultPageSize: 10,
+    maxPageSize: 100,
+  });
+
+  const where = {
+    userId,
+    ...(month ? { month } : {}),
+    ...(source ? { source: { contains: source, mode: "insensitive" } } : {}),
+    ...(Number.isInteger(accountId) && accountId > 0 ? { accountId } : {}),
+    ...(Number.isInteger(categoryId) && categoryId > 0 ? { categoryId } : {}),
+    ...(METHOD_TYPES.has(paymentMethod) ? { paymentMethod } : {}),
+    ...(q
+      ? {
+          OR: [
+            { source: { contains: q, mode: "insensitive" } },
+            { tag: { contains: q, mode: "insensitive" } },
+            { category: { name: { contains: q, mode: "insensitive" } } },
+            { account: { name: { contains: q, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  };
+  const [total, items] = await prisma.$transaction([
+    prisma.income.count({ where }),
+    prisma.income.findMany({
+      where,
+      orderBy: { [sortBy]: sortOrder },
+      include: {
+        account: true,
+        category: true,
+      },
+      skip,
+      take,
+    }),
+  ]);
+
+  return buildPaginatedResult({
+    items,
+    total,
+    page,
+    pageSize,
   });
 }
 
@@ -299,7 +321,6 @@ async function getIncomesByMonth(userId, month) {
     orderBy: { creditedAt: "desc" },
     include: {
       account: true,
-      paymentMethod: true,
       category: true,
     },
   });

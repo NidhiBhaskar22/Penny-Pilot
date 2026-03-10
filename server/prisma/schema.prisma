@@ -16,6 +16,7 @@ model User {
   password      String
   createdAt     DateTime        @default(now())
   balance       Decimal         @default(0) @db.Decimal(10, 2)
+  sessions      Session[]
   incomes       Income[]
   expenses      Expense[]
   investments   Investment[]
@@ -36,42 +37,56 @@ model User {
 }
 
 model Account {
-  id        Int      @id @default(autoincrement())
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int
-  name      String
-  type      String
-  identifier String?
-  parentId  Int?
-  parent    Account? @relation("AccountHierarchy", fields: [parentId], references: [id])
-  children  Account[] @relation("AccountHierarchy")
-  isActive  Boolean  @default(true)
-  balance   Decimal  @db.Decimal(10, 2)
-  createdAt DateTime @default(now())
-
-  incomes  Income[]
-  expenses Expense[]
+  id          Int             @id @default(autoincrement())
+  user        User            @relation(fields: [userId], references: [id])
+  userId      Int
+  name        String
+  identifier  String?
+  isActive    Boolean         @default(true)
+  balance     Decimal         @db.Decimal(10, 2)
+  createdAt   DateTime        @default(now())
+  incomes     Income[]
+  expenses    Expense[]
   investments Investment[]
-  incomePaymentMethods Income[] @relation("IncomePaymentMethod")
-  expensePaymentMethods Expense[] @relation("ExpensePaymentMethod")
-  investmentPaymentMethods Investment[] @relation("InvestmentPaymentMethod")
+  methods     AccountMethod[]
 
-  @@index([userId, type])
-  @@index([userId, parentId])
+   @@index([userId])
+}
+
+enum PaymentMethodType {
+  NET_BANKING
+  UPI
+  CASH
+  DEBIT_CARD
+  CREDIT_CARD
+}
+
+model AccountMethod {
+  id        Int               @id @default(autoincrement())
+  account   Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId Int
+  method    PaymentMethodType
+  createdAt DateTime          @default(now())
+
+  @@unique([accountId, method])
+  @@index([accountId])
 }
 
 model Category {
-  id       Int       @id @default(autoincrement())
-  name     String
-  type     String
-  user     User      @relation(fields: [userId], references: [id])
-  userId   Int
-  kakeibo  String?
-  incomes  Income[]
-  expenses Expense[]
-  limits   Limit[]
+  id        Int       @id @default(autoincrement())
+  name      String
+  type      String
+  user      User      @relation(fields: [userId], references: [id])
+  userId    Int
+  kakeibo   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+  incomes   Income[]
+  expenses  Expense[]
+  limits    Limit[]
 
-  @@unique([userId, name])
+  @@unique([userId, name, type])
+  @@index([userId, type])
 }
 
 model Income {
@@ -86,13 +101,10 @@ model Income {
   salaryBreakdown   String?
   account           Account            @relation(fields: [accountId], references: [id])
   accountId         Int
-  paymentMethod     Account?           @relation("IncomePaymentMethod", fields: [paymentMethodId], references: [id])
-  paymentMethodId   Int?
-  category          Category           @relation(fields: [categoryId], references: [id])
-  categoryId        Int
+  paymentMethod     PaymentMethodType
+  category          Category?          @relation(fields: [categoryId], references: [id])
+  categoryId        Int?
   goalContributions GoalContribution[]
-
-  @@index([paymentMethodId])
 }
 
 model Expense {
@@ -100,15 +112,13 @@ model Expense {
   user       User     @relation(fields: [userId], references: [id])
   userId     Int
   amount     Decimal  @db.Decimal(10, 2)
-  tag        String
   paidTo     String?
   spentAt    DateTime
   month      String
   week       Int?
   account    Account  @relation(fields: [accountId], references: [id])
   accountId  Int
-  paymentMethod   Account? @relation("ExpensePaymentMethod", fields: [paymentMethodId], references: [id])
-  paymentMethodId Int?
+  paymentMethod   PaymentMethodType
   category   Category @relation(fields: [categoryId], references: [id])
   categoryId Int
 
@@ -116,7 +126,6 @@ model Expense {
   goalContributions GoalContribution[]
   emiSchedules      EMISchedule[]
 
-  @@index([paymentMethodId])
 }
 
 model Investment {
@@ -125,8 +134,7 @@ model Investment {
   userId      Int
   account     Account? @relation(fields: [accountId], references: [id])
   accountId   Int?
-  paymentMethod   Account? @relation("InvestmentPaymentMethod", fields: [paymentMethodId], references: [id])
-  paymentMethodId Int?
+  paymentMethod   PaymentMethodType
   amount      Decimal  @db.Decimal(10, 2)
   instrument  String
   type        String?
@@ -137,7 +145,6 @@ model Investment {
   month       String
   week        Int?
 
-  @@index([paymentMethodId])
 }
 
 model Balance {
@@ -324,4 +331,21 @@ model EMISchedule {
 
   expense   Expense? @relation(fields: [expenseId], references: [id])
   expenseId Int?
+}
+
+model Session {
+  id               String   @id @default(cuid())
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           Int
+  refreshTokenHash String
+  userAgent        String?
+  ipAddress        String?
+  expiresAt        DateTime
+  lastUsedAt       DateTime?
+  revokedAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
 }

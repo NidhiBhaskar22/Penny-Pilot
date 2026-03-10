@@ -28,10 +28,8 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
   const [tag, setTag] = useState("");
   const [creditedAt, setCreditedAt] = useState("");
   const [accountId, setAccountId] = useState("");
-  const [paymentMethodId, setPaymentMethodId] = useState("");
-  const [accounts, setAccounts] = useState([]);
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [bankAccounts, setBankAccounts] = useState([]);
-  const [paymentMethods, setPaymentMethods] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [loadingMeta, setLoadingMeta] = useState(false);
   const [notice, setNotice] = useState("");
@@ -42,7 +40,7 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
       setSource(income.source || "");
       setTag(income.tag || "");
       setAccountId(income.accountId ? String(income.accountId) : "");
-      setPaymentMethodId(income.paymentMethodId ? String(income.paymentMethodId) : "");
+      setPaymentMethod(income.paymentMethod || "");
       setCreditedAt(
         income.creditedAt ? toISTDateInputValue(income.creditedAt) : ""
       );
@@ -52,7 +50,7 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
       setTag("");
       setCreditedAt("");
       setAccountId("");
-      setPaymentMethodId("");
+      setPaymentMethod("");
     }
   }, [income]);
 
@@ -66,17 +64,10 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
         const accountsRes = await axiosClient.get("/accounts");
         const allAccounts = Array.isArray(accountsRes.data) ? accountsRes.data : [];
         const accountOptions = allAccounts.filter((a) => a.isActive !== false);
-        const banks = accountOptions.filter(
-          (a) => String(a.type).toUpperCase() === "BANK" && (a.parentId == null)
-        );
-        const methods = accountOptions.filter(
-          (a) => String(a.type).toUpperCase() !== "BANK" && a.parentId != null
-        );
+        const banks = accountOptions;
 
         if (!cancelled) {
-          setAccounts(accountOptions);
           setBankAccounts(banks);
-          setPaymentMethods(methods);
 
           if (!income?.id) {
             if (!accountId && banks.length === 1) {
@@ -87,7 +78,7 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
       } catch (error) {
         if (!cancelled) {
           console.error("Failed to load income form metadata", error);
-          setAccounts([]);
+          setBankAccounts([]);
         }
       } finally {
         if (!cancelled) setLoadingMeta(false);
@@ -102,16 +93,17 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
 
   useEffect(() => {
     if (!isOpen || !accountId) return;
-    const methodsForBank = paymentMethods.filter((m) => String(m.parentId) === String(accountId));
+    const selected = bankAccounts.find((b) => String(b.id) === String(accountId));
+    const methodsForBank = selected?.enabledMethods || [];
     if (!methodsForBank.length) {
-      setPaymentMethodId("");
+      setPaymentMethod("");
       return;
     }
-    const valid = methodsForBank.some((m) => String(m.id) === String(paymentMethodId));
+    const valid = methodsForBank.includes(paymentMethod);
     if (!valid) {
-      setPaymentMethodId(String(methodsForBank[0].id));
+      setPaymentMethod(methodsForBank[0]);
     }
-  }, [isOpen, accountId, paymentMethods, paymentMethodId]);
+  }, [isOpen, accountId, bankAccounts, paymentMethod]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -134,7 +126,7 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
       setNotice("Please select account");
       return;
     }
-    if (!paymentMethodId) {
+    if (!paymentMethod) {
       setNotice("Please select payment method");
       return;
     }
@@ -143,10 +135,11 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
     const data = {
       amount: amt,
       source,
-      tag,
+      tag: tag.trim() || null,
       creditedAt: creditedAtISO,
       accountId: Number(accountId),
-      paymentMethodId: Number(paymentMethodId),
+      paymentMethod,
+      categoryId: null,
     };
 
     try {
@@ -166,9 +159,8 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
   };
 
   if (!isOpen) return null;
-  const methodsForSelectedAccount = paymentMethods.filter(
-    (m) => String(m.parentId) === String(accountId)
-  );
+  const methodsForSelectedAccount =
+    bankAccounts.find((b) => String(b.id) === String(accountId))?.enabledMethods || [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -242,20 +234,20 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
             <label className="mb-1 block text-sm font-medium">Payment Method</label>
             <select
               className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
-              value={paymentMethodId}
-              onChange={(e) => setPaymentMethodId(e.target.value)}
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
               disabled={loadingMeta || !accountId}
             >
               <option value="">Select method</option>
               {methodsForSelectedAccount.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name} ({m.type})
+                <option key={m} value={m}>
+                  {m.replaceAll("_", " ")}
                 </option>
               ))}
             </select>
           </div>
 
-          {!loadingMeta && !accounts.length ? (
+          {!loadingMeta && !bankAccounts.length ? (
             <p className="mt-2 text-xs text-mist/70">
               No accounts found. Create one in Accounts page first.
             </p>

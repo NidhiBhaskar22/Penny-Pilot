@@ -6,6 +6,7 @@ const {
   createAccount,
   updateAccount,
   deleteAccount,
+  setAccountMethods,
 } = require("../controllers/accountController");
 
 router.use(authMiddleware);
@@ -14,5 +15,6 @@ router.get("/", getAccounts); // ?tree=true
 router.post("/", createAccount);
 router.put("/:id", updateAccount);
 router.delete("/:id", deleteAccount);
+router.put("/:id/methods", setAccountMethods);
 
 module.exports = router;

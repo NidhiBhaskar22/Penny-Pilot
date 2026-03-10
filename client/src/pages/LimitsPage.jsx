@@ -32,27 +32,98 @@ function AnimatedNumber({ value = 0, fmt = (v) => v.toLocaleString() }) {
   return <>{fmt(display)}</>;
 }
 
+function formatLimitWindow(limit) {
+  if (limit.scope === "MONTHLY") {
+    return limit.month == null && limit.year == null ? "All months" : `${limit.month}/${limit.year}`;
+  }
+  if (limit.scope === "WEEKLY") {
+    return limit.week && limit.year ? `${limit.week}/${limit.year}` : "-";
+  }
+  if (limit.scope === "DAILY") {
+    return limit.day ? String(limit.day).slice(0, 10) : "-";
+  }
+  return "-";
+}
+
 const LimitsPage = () => {
+  const DEFAULT_PAGE_SIZE = 10;
   const [limits, setLimits] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedLimit, setSelectedLimit] = useState(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [q, setQ] = useState("");
+  const [scope, setScope] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [sortBy, setSortBy] = useState("id");
+  const [sortOrder, setSortOrder] = useState("desc");
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    pageSize: DEFAULT_PAGE_SIZE,
+    totalPages: 0,
+  });
 
-  const fetchLimits = async () => {
+  const fetchLimits = async (targetPage = page) => {
     setLoading(true);
     try {
-      const response = await axiosClient.get("/limits");
-      setLimits(Array.isArray(response.data) ? response.data : response.data?.limits || []);
+      const response = await axiosClient.get("/limits", {
+        params: {
+          page: targetPage,
+          pageSize,
+          q: q || undefined,
+          scope: scope || undefined,
+          categoryId: categoryId || undefined,
+          sortBy,
+          sortOrder,
+        },
+      });
+      const payload = response.data;
+      const rows = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.items)
+        ? payload.items
+        : response.data?.limits || [];
+
+      const nextPagination = {
+        total: Number(payload?.total ?? rows.length),
+        page: Number(payload?.page ?? targetPage),
+        pageSize: Number(payload?.pageSize ?? pageSize),
+        totalPages: Number(payload?.totalPages ?? (rows.length ? 1 : 0)),
+      };
+
+      if (nextPagination.totalPages > 0 && nextPagination.page > nextPagination.totalPages) {
+        setPage(nextPagination.totalPages);
+        return;
+      }
+
+      setLimits(rows);
+      setPagination(nextPagination);
     } catch (error) {
       console.error("Failed to load limits", error);
       setLimits([]);
+      setPagination({ total: 0, page: targetPage, pageSize, totalPages: 0 });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchLimits();
+    fetchLimits(page);
+  }, [page, pageSize, q, scope, categoryId, sortBy, sortOrder]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const res = await axiosClient.get("/categories", { params: { type: "EXPENSE" } });
+        setCategories(Array.isArray(res.data) ? res.data : []);
+      } catch (error) {
+        console.error("Failed to load limit categories", error);
+      }
+    };
+    loadCategories();
   }, []);
 
   const onEdit = (limit) => {
@@ -63,7 +134,7 @@ const LimitsPage = () => {
   const onFormClose = () => {
     setIsOpen(false);
     setSelectedLimit(null);
-    fetchLimits();
+    fetchLimits(page);
   };
 
   const totalCategories = limits.length;
@@ -135,46 +206,168 @@ const LimitsPage = () => {
           </TechCard>
         </div>
 
+        <div className="mb-6 rounded-xl border border-[#3a63b5]/30 bg-[rgba(4,12,46,0.55)] p-3">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-mist/70">Filters</div>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-4 xl:grid-cols-7">
+            <input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            />
+            <select
+              value={scope}
+              onChange={(e) => {
+                setScope(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            >
+              <option value="">Scope</option>
+              <option value="DAILY">Daily</option>
+              <option value="WEEKLY">Weekly</option>
+              <option value="MONTHLY">Monthly</option>
+            </select>
+            <select
+              value={categoryId}
+              onChange={(e) => {
+                setCategoryId(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            >
+              <option value="">Category</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            >
+              <option value="id">Latest</option>
+              <option value="amount">Amount</option>
+              <option value="scope">Scope</option>
+              <option value="month">Month</option>
+              <option value="year">Year</option>
+            </select>
+            <select
+              value={sortOrder}
+              onChange={(e) => {
+                setSortOrder(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            >
+              <option value="desc">Desc</option>
+              <option value="asc">Asc</option>
+            </select>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => {
+                setQ("");
+                setScope("");
+                setCategoryId("");
+                setSortBy("id");
+                setSortOrder("desc");
+                setPageSize(DEFAULT_PAGE_SIZE);
+                setPage(1);
+              }}
+              className="rounded-md border border-[#4f87df]/40 px-3 py-2 text-sm font-semibold text-mist/90"
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+
         {limits.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {limits.map((limit) => (
-              <TechCard
-                key={
-                  limit.id || limit._id || `${limit.category?.name || "general"}-${limit.scope}-${limit.amount}`
-                }
-              >
-                <div className="mb-2 text-lg font-semibold text-mist">{limit.category?.name || "General"}</div>
-                <div className="mb-4 text-sm text-mist/70">
-                  <div>
-                    <span className="font-semibold">Scope:</span> {limit.scope}
-                  </div>
-                  <div>
-                    <span className="font-semibold">Amount:</span> INR {Number(limit.amount || 0).toLocaleString()}
-                  </div>
-                  {limit.scope === "MONTHLY" && (
-                    <div>
-                      <span className="font-semibold">Month/Year:</span> {limit.month}/{limit.year}
-                    </div>
-                  )}
-                  {limit.scope === "WEEKLY" && (
-                    <div>
-                      <span className="font-semibold">Week/Year:</span> {limit.week}/{limit.year}
-                    </div>
-                  )}
-                  {limit.scope === "DAILY" && (
-                    <div>
-                      <span className="font-semibold">Day:</span> {limit.day ? limit.day.slice(0, 10) : "-"}
-                    </div>
-                  )}
-                </div>
+          <div>
+            <div className="overflow-hidden rounded-lg border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)]">
+              <table className="w-full text-left text-sm text-mist">
+                <thead className="bg-[rgba(7,18,62,0.95)] uppercase tracking-wider text-xs text-mist">
+                  <tr>
+                    <th className="px-4 py-3"> </th>
+                    <th className="px-4 py-3">Category</th>
+                    <th className="px-4 py-3">Scope</th>
+                    <th className="px-4 py-3">Amount</th>
+                    <th className="px-4 py-3">Window</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {limits.map((limit, index) => (
+                    <tr
+                      key={limit.id || limit._id || `${limit.category?.name || "general"}-${limit.scope}-${limit.amount}`}
+                      className={index % 2 === 0 ? "bg-[rgba(7,18,62,0.78)]" : "bg-[rgba(10,25,78,0.78)]"}
+                    >
+                      <td className="px-4 py-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sand text-brand-900 font-semibold">
+                          {String(limit.category?.name || "G")[0].toUpperCase()}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 font-semibold text-mist">{limit.category?.name || "General"}</td>
+                      <td className="px-4 py-4 font-semibold text-peach">{limit.scope || "-"}</td>
+                      <td className="px-4 py-4 font-semibold text-mist">
+                        INR {Number(limit.amount || 0).toLocaleString("en-IN")}
+                      </td>
+                      <td className="px-4 py-4 font-semibold text-mist">{formatLimitWindow(limit)}</td>
+                      <td className="px-4 py-4 text-right">
+                        <button
+                          className="rounded-md bg-[#22c0ff] px-3 py-1.5 text-xs font-semibold text-[#03102e]"
+                          onClick={() => onEdit(limit)}
+                        >
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 flex items-center justify-between text-sm text-mist/80">
+              <div>
+                Page {pagination.page} of {pagination.totalPages || 1} • Total {pagination.total} entries
+              </div>
+              <div className="flex gap-2">
                 <button
-                  className="rounded-lg bg-[#22c0ff] px-3 py-2 text-sm font-semibold text-[#03102e]"
-                  onClick={() => onEdit(limit)}
+                  type="button"
+                  className="rounded-md border border-[#4f87df]/40 px-3 py-1.5 disabled:opacity-50"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
                 >
-                  Edit
+                  Previous
                 </button>
-              </TechCard>
-            ))}
+                <button
+                  type="button"
+                  className="rounded-md border border-[#4f87df]/40 px-3 py-1.5 disabled:opacity-50"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={pagination.totalPages === 0 || page >= pagination.totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <TechCard>

@@ -21,12 +21,28 @@ const stagger = {
 };
 
 const pad = (n) => String(n).padStart(2, "0");
-const now = new Date();
-const DEFAULT_MONTH = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
-const DEFAULT_DATE = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
-  now.getDate(),
-)}`;
-const DEFAULT_YEAR = String(now.getFullYear());
+
+function getISOWeekString(date = new Date()) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  return `${d.getUTCFullYear()}-W${pad(weekNo)}`;
+}
+
+function buildDefaultFilters() {
+  const now = new Date();
+  return {
+    timeframe: "monthly",
+    anchorMonth: `${now.getFullYear()}-${pad(now.getMonth() + 1)}`,
+    anchorWeek: getISOWeekString(now),
+    anchorDate: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+    anchorYear: String(now.getFullYear()),
+    accountId: "",
+    methodType: "",
+  };
+}
 const METHOD_OPTIONS = [
   { value: "", label: "All Methods" },
   { value: "NET_BANKING", label: "Net Banking" },
@@ -36,7 +52,7 @@ const METHOD_OPTIONS = [
   { value: "CREDIT_CARD", label: "Credit Card" },
 ];
 
-const KpiCard = ({ label, value, tag }) => (
+const KpiCard = ({ label, value, badge }) => (
   <MotionBox
     className="relative overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-8 shadow-[0_16px_42px_rgba(0,0,0,0.48),0_0_24px_rgba(0,170,255,0.12)]"
     variants={dashboardFade}
@@ -46,7 +62,7 @@ const KpiCard = ({ label, value, tag }) => (
         {label}
       </div>
       <span className="rounded-full border border-cyan-300/45 bg-cyan-400/10 px-2 text-[10px] uppercase tracking-wider text-cyan-200">
-        {tag}
+        {badge}
       </span>
     </div>
     <div className="text-3xl font-bold text-mist">
@@ -82,31 +98,31 @@ const StatCard = ({ title, value, unit, accent }) => (
 );
 
 const DashboardPage = () => {
-  const [timeframe, setTimeframe] = useState("monthly");
-  const [anchorMonth, setAnchorMonth] = useState(DEFAULT_MONTH);
-  const [anchorWeek, setAnchorWeek] = useState("");
-  const [anchorDate, setAnchorDate] = useState(DEFAULT_DATE);
-  const [anchorYear, setAnchorYear] = useState(DEFAULT_YEAR);
-  const [accountId, setAccountId] = useState("");
-  const [methodType, setMethodType] = useState("");
+  const defaultFilters = React.useMemo(() => buildDefaultFilters(), []);
+  const [draftFilters, setDraftFilters] = useState(defaultFilters);
+  const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState(null);
 
   const buildAnchor = useCallback(() => {
-    switch (timeframe) {
+    switch (appliedFilters.timeframe) {
       case "monthly":
-        return anchorMonth || DEFAULT_MONTH;
+        return appliedFilters.anchorMonth || defaultFilters.anchorMonth;
       case "weekly":
-        return anchorWeek || anchorDate || DEFAULT_DATE;
+        return (
+          appliedFilters.anchorWeek ||
+          appliedFilters.anchorDate ||
+          defaultFilters.anchorDate
+        );
       case "daily":
-        return anchorDate || DEFAULT_DATE;
+        return appliedFilters.anchorDate || defaultFilters.anchorDate;
       case "yearly":
-        return anchorYear || DEFAULT_YEAR;
+        return appliedFilters.anchorYear || defaultFilters.anchorYear;
       default:
         return undefined;
     }
-  }, [timeframe, anchorMonth, anchorWeek, anchorDate, anchorYear]);
+  }, [appliedFilters, defaultFilters.anchorDate, defaultFilters.anchorMonth, defaultFilters.anchorYear]);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,10 +149,14 @@ const DashboardPage = () => {
         const anchor = buildAnchor();
         const { data } = await axiosClient.get("/dashboard/advanced", {
           params: {
-            timeframe,
+            timeframe: appliedFilters.timeframe,
             anchor,
-            ...(accountId ? { accountId } : {}),
-            ...(methodType ? { methodType } : {}),
+            ...(appliedFilters.accountId
+              ? { accountId: appliedFilters.accountId }
+              : {}),
+            ...(appliedFilters.methodType
+              ? { methodType: appliedFilters.methodType }
+              : {}),
           },
         });
 
@@ -173,7 +193,7 @@ const DashboardPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [buildAnchor, timeframe, accountId, methodType]);
+  }, [buildAnchor, appliedFilters]);
 
   if (loading || !summary) {
     return (
@@ -187,9 +207,30 @@ const DashboardPage = () => {
 
   const netFlow = summary.totalIncome - summary.totalExpense;
 
-  const bankAccounts = accounts.filter(
-    (a) => String(a.type).toUpperCase() === "BANK" && a.parentId == null
-  );
+  const bankAccounts = accounts;
+  const hasPendingChanges =
+    JSON.stringify(draftFilters) !== JSON.stringify(appliedFilters);
+
+  const handleApplyFilters = () => {
+    setAppliedFilters(draftFilters);
+  };
+
+  const handleResetFilters = () => {
+    const fresh = buildDefaultFilters();
+    setDraftFilters(fresh);
+    setAppliedFilters(fresh);
+  };
+
+  const handleCurrentAnchor = () => {
+    const fresh = buildDefaultFilters();
+    setDraftFilters((prev) => ({
+      ...prev,
+      anchorMonth: fresh.anchorMonth,
+      anchorWeek: fresh.anchorWeek,
+      anchorDate: fresh.anchorDate,
+      anchorYear: fresh.anchorYear,
+    }));
+  };
 
   return (
     <AppShell>
@@ -226,83 +267,131 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          <div className="mb-6 flex flex-wrap items-center justify-end gap-3">
-            <select
-              className="h-10 rounded-lg border border-[#4f87df]/45 bg-[rgba(4,12,46,0.88)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-            >
-              <option value="">All Accounts</option>
-              {bankAccounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              className="h-10 rounded-lg border border-[#4f87df]/45 bg-[rgba(4,12,46,0.88)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
-              value={methodType}
-              onChange={(e) => setMethodType(e.target.value)}
-            >
-              {METHOD_OPTIONS.map((opt) => (
-                <option key={opt.value || "all"} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-
-            <TimeframeSelector timeframe={timeframe} setTimeframe={setTimeframe} />
-
-            {timeframe === "monthly" && (
-              <input
-                type="month"
-                className="h-10 rounded-lg border border-[#4f87df]/45 bg-[rgba(4,12,46,0.88)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
-                value={anchorMonth}
-                onChange={(e) => setAnchorMonth(e.target.value)}
-              />
-            )}
-
-            {timeframe === "weekly" && (
-              <input
-                type="week"
-                className="h-10 rounded-lg border border-[#4f87df]/45 bg-[rgba(4,12,46,0.88)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
-                value={anchorWeek}
-                onChange={(e) => setAnchorWeek(e.target.value)}
-              />
-            )}
-
-            {timeframe === "daily" && (
-              <input
-                type="date"
-                className="h-10 rounded-lg border border-[#4f87df]/45 bg-[rgba(4,12,46,0.88)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
-                value={anchorDate}
-                onChange={(e) => setAnchorDate(e.target.value)}
-              />
-            )}
-
-            {timeframe === "yearly" && (
-              <input
-                type="number"
-                min="2000"
-                max="2100"
-                className="h-10 w-28 rounded-lg border border-[#4f87df]/45 bg-[rgba(4,12,46,0.88)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
-                value={anchorYear}
-                onChange={(e) => setAnchorYear(e.target.value)}
-                placeholder="Year"
-              />
-            )}
-          </div>
-
           <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-            <KpiCard label="Total Income" value={summary.totalIncome} tag="IN" />
-            <KpiCard label="Total Expenses" value={summary.totalExpense} tag="OUT" />
+            <KpiCard label="Total Income" value={summary.totalIncome} badge="IN" />
+            <KpiCard label="Total Expenses" value={summary.totalExpense} badge="OUT" />
             <KpiCard
               label="Total Investments"
               value={summary.totalInvestment}
-              tag="HOLD"
+              badge="HOLD"
             />
-            <KpiCard label="Net Flow" value={netFlow} tag="DELTA" />
+            <KpiCard label="Net Flow" value={netFlow} badge="DELTA" />
+          </div>
+
+          <div className="mb-8 rounded-xl border border-[#3a63b5]/30 bg-[rgba(4,12,46,0.6)] p-3">
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-3 xl:grid-cols-7">
+              <TimeframeSelector
+                timeframe={draftFilters.timeframe}
+                setTimeframe={(value) =>
+                  setDraftFilters((prev) => ({ ...prev, timeframe: value }))
+                }
+                className="h-9 rounded-md border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] text-sm"
+              />
+              {draftFilters.timeframe === "monthly" && (
+                <input
+                  type="month"
+                  className="h-9 rounded-md border border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  value={draftFilters.anchorMonth}
+                  onChange={(e) =>
+                    setDraftFilters((prev) => ({
+                      ...prev,
+                      anchorMonth: e.target.value,
+                    }))
+                  }
+                />
+              )}
+              {draftFilters.timeframe === "weekly" && (
+                <input
+                  type="week"
+                  className="h-9 rounded-md border border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  value={draftFilters.anchorWeek}
+                  onChange={(e) =>
+                    setDraftFilters((prev) => ({
+                      ...prev,
+                      anchorWeek: e.target.value,
+                    }))
+                  }
+                />
+              )}
+              {draftFilters.timeframe === "daily" && (
+                <input
+                  type="date"
+                  className="h-9 rounded-md border border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  value={draftFilters.anchorDate}
+                  onChange={(e) =>
+                    setDraftFilters((prev) => ({
+                      ...prev,
+                      anchorDate: e.target.value,
+                    }))
+                  }
+                />
+              )}
+              {draftFilters.timeframe === "yearly" && (
+                <input
+                  type="number"
+                  min="2000"
+                  max="2100"
+                  className="h-9 rounded-md border border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  value={draftFilters.anchorYear}
+                  onChange={(e) =>
+                    setDraftFilters((prev) => ({
+                      ...prev,
+                      anchorYear: e.target.value,
+                    }))
+                  }
+                  placeholder="Year"
+                />
+              )}
+              <select
+                className="h-9 rounded-md border border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                value={draftFilters.accountId}
+                onChange={(e) =>
+                  setDraftFilters((prev) => ({ ...prev, accountId: e.target.value }))
+                }
+              >
+                <option value="">All Accounts</option>
+                {bankAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="h-9 rounded-md border border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                value={draftFilters.methodType}
+                onChange={(e) =>
+                  setDraftFilters((prev) => ({ ...prev, methodType: e.target.value }))
+                }
+              >
+                {METHOD_OPTIONS.map((opt) => (
+                  <option key={opt.value || "all"} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleCurrentAnchor}
+                className="h-9 rounded-md border border-[#4f87df]/35 px-3 text-sm text-mist/85"
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="h-9 rounded-md border border-[#4f87df]/35 px-3 text-sm text-mist/85"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyFilters}
+                className="h-9 rounded-md bg-[#22c0ff] px-4 text-sm font-semibold text-[#03102e] disabled:opacity-50"
+                disabled={!hasPendingChanges}
+              >
+                Apply Filters
+              </button>
+            </div>
           </div>
 
           <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">

@@ -14,6 +14,7 @@ const splitRoute = require('./routes/splitRoute');
 const loanRoute = require('./routes/loanRoute');
 const emiRoute = require('./routes/emiRoute')
 const accountRoute = require('./routes/accountRoute');
+const categoryRoute = require('./routes/categoryRoute');
 const errorHandler = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -31,6 +32,7 @@ app.use('/api/splits', splitRoute);
 app.use('/api/loans', loanRoute);
 app.use('/api/emis', emiRoute);
 app.use('/api/accounts', accountRoute);
+app.use('/api/categories', categoryRoute);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

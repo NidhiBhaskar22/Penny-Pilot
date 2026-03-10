@@ -13,16 +13,22 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     const token = localStorage.getItem("token");
-    if (storedUser && token) {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (storedUser && token && refreshToken) {
       setUser(JSON.parse(storedUser));
+    } else {
+      localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("user");
     }
     setLoading(false);
   }, []);
 
   const register = async (data) => {
     const res = await axiosClient.post("/auth/register", data);
-    const { token, user } = res.data;
+    const { token, refreshToken, user } = res.data;
     localStorage.setItem("token", token);
+    localStorage.setItem("refreshToken", refreshToken);
     localStorage.setItem("user", JSON.stringify(user));
     setUser(user);
     return res.data;
@@ -30,16 +36,18 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (credentials) => {
     const res = await axiosClient.post("/auth/login", credentials);
-    const { token, user } = res.data;
+    const { token, refreshToken, user } = res.data;
     localStorage.setItem("token", token);
+    localStorage.setItem("refreshToken", refreshToken);
     localStorage.setItem("user", JSON.stringify(user));
     setUser(user);
   };
 
   const loginWithGoogle = async (idToken) => {
     const res = await axiosClient.post("/auth/google", { idToken });
-    const { token, user } = res.data;
+    const { token, refreshToken, user } = res.data;
     localStorage.setItem("token", token);
+    localStorage.setItem("refreshToken", refreshToken);
     localStorage.setItem("user", JSON.stringify(user));
     setUser(user);
   };
@@ -58,7 +66,12 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (refreshToken) {
+      axiosClient.post("/auth/logout", { refreshToken }).catch(() => {});
+    }
     localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
     setUser(null);
   };

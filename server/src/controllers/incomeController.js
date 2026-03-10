@@ -40,7 +40,7 @@ exports.getAllIncomes = asyncHandler(async (req, res) => {
   const userId = getUserId(req);
   if (!userId) throw new ApiError(401, "Unauthorized");
 
-  const incomes = await incomeService.getAllIncomes(userId);
+  const incomes = await incomeService.getAllIncomes(userId, req.query);
   res.json(incomes);
 });
 

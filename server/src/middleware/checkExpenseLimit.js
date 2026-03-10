@@ -32,11 +32,16 @@ async function checkExpenseLimit(req, res, next) {
     const limits = await prisma.limit.findMany({
       where: {
         userId,
-        OR: [{ categoryId: parsedCategoryId }, { categoryId: null }],
-        OR: [
-          { scope: "MONTHLY", month, year },
-          { scope: "WEEKLY", week, year },
-          { scope: "DAILY", day },
+        AND: [
+          { OR: [{ categoryId: parsedCategoryId }, { categoryId: null }] },
+          {
+            OR: [
+              { scope: "MONTHLY", month, year },
+              { scope: "MONTHLY", month: null, year: null },
+              { scope: "WEEKLY", week, year },
+              { scope: "DAILY", day },
+            ],
+          },
         ],
       },
       orderBy: { id: "desc" },

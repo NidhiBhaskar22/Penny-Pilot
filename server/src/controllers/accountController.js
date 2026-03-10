@@ -1,7 +1,11 @@
 const { asyncHandler, ApiError } = require("../middleware/errorMiddleware");
 const accountService = require("../services/accountService");
 
-const getUserId = (req) => req.user?.userId ?? req.user?.id;
+const getUserId = (req) => {
+  const raw = req.user?.userId ?? req.user?.id;
+  const id = Number(raw);
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
 
 exports.getAccounts = asyncHandler(async (req, res) => {
   const userId = getUserId(req);
@@ -36,5 +40,17 @@ exports.deleteAccount = asyncHandler(async (req, res) => {
   if (!userId) throw new ApiError(401, "Unauthorized");
 
   const result = await accountService.deleteAccount(userId, req.params.id);
+  res.json(result);
+});
+
+exports.setAccountMethods = asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) throw new ApiError(401, "Unauthorized");
+
+  const result = await accountService.setAccountMethods(
+    userId,
+    req.params.id,
+    req.body?.methods
+  );
   res.json(result);
 });

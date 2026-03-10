@@ -87,31 +87,12 @@ const getRangeForTimeframe = (timeframe, anchor) => {
 
 async function getScenarioAccountIds(userId, accountId) {
   if (!accountId) return null;
-  const all = await prisma.account.findMany({
-    where: { userId, isActive: true },
-    select: { id: true, parentId: true },
-  });
-
-  const byParent = new Map();
-  all.forEach((a) => {
-    const pid = a.parentId ?? 0;
-    if (!byParent.has(pid)) byParent.set(pid, []);
-    byParent.get(pid).push(a.id);
-  });
-
   const root = Number(accountId);
-  const allowed = new Set();
-  const queue = [root];
-
-  while (queue.length) {
-    const cur = queue.shift();
-    if (allowed.has(cur)) continue;
-    allowed.add(cur);
-    const kids = byParent.get(cur) || [];
-    kids.forEach((k) => queue.push(k));
-  }
-
-  return Array.from(allowed);
+  const account = await prisma.account.findFirst({
+    where: { id: root, userId, isActive: true },
+    select: { id: true },
+  });
+  return account ? [account.id] : [];
 }
 
 // -------------------- Normal Dashboard --------------------
@@ -155,11 +136,25 @@ const getNormalDashboard = async (req, res) => {
         (totalInsurance._sum.premium || 0));
 
     // Category-wise spend (month & year graphs)
-    const categoryWise = await prisma.expense.groupBy({
-      by: ["tag", "month"],
+    const categoryWiseRaw = await prisma.expense.groupBy({
+      by: ["categoryId", "month"],
       where: { userId },
       _sum: { amount: true },
     });
+    const categoryIds = categoryWiseRaw.map((row) => row.categoryId);
+    const categories = categoryIds.length
+      ? await prisma.category.findMany({
+          where: { id: { in: categoryIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+    const categoryWise = categoryWiseRaw.map((row) => ({
+      categoryId: row.categoryId,
+      category: categoryMap.get(row.categoryId) || "Uncategorized",
+      month: row.month,
+      _sum: row._sum,
+    }));
 
     res.json({
       profile: { name: user.name, email: user.email },
@@ -205,7 +200,7 @@ const getAdvancedDashboard = async (req, res) => {
         userId,
         creditedAt: { gte: start, lte: end },
         ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: { is: { type: methodType } } } : {}),
+        ...(methodType ? { paymentMethod: methodType } : {}),
       },
       _sum: { amount: true },
     });
@@ -214,7 +209,7 @@ const getAdvancedDashboard = async (req, res) => {
         userId,
         spentAt: { gte: start, lte: end },
         ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: { is: { type: methodType } } } : {}),
+        ...(methodType ? { paymentMethod: methodType } : {}),
       },
       _sum: { amount: true },
     });
@@ -223,7 +218,7 @@ const getAdvancedDashboard = async (req, res) => {
         userId,
         investedAt: { gte: start, lte: end },
         ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: { is: { type: methodType } } } : {}),
+        ...(methodType ? { paymentMethod: methodType } : {}),
       },
       _sum: { amount: true },
     });
@@ -261,8 +256,11 @@ const getAdvancedDashboard = async (req, res) => {
     const unclassifiedExpenses = await prisma.expense.findMany({
       where: {
         userId,
-        OR: [{ tag: "" }],
+        category: {
+          OR: [{ kakeibo: null }, { kakeibo: "" }],
+        },
       },
+      include: { category: true },
     });
 
     // 2) Deviation alerts (vs Monthly Limits)
@@ -277,7 +275,7 @@ const getAdvancedDashboard = async (req, res) => {
         userId,
         month: monthKey,
         ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: { is: { type: methodType } } } : {}),
+        ...(methodType ? { paymentMethod: methodType } : {}),
       },
       _sum: { amount: true },
     });
@@ -356,7 +354,7 @@ const getAdvancedDashboard = async (req, res) => {
       where: {
         userId,
         ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: { is: { type: methodType } } } : {}),
+        ...(methodType ? { paymentMethod: methodType } : {}),
       },
     });
     const investmentSummary = {
@@ -371,7 +369,7 @@ const getAdvancedDashboard = async (req, res) => {
         userId,
         creditedAt: { gte: monthStart, lte: monthEnd },
         ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: { is: { type: methodType } } } : {}),
+        ...(methodType ? { paymentMethod: methodType } : {}),
       },
     });
     const recentExpenses = await prisma.expense.findMany({
@@ -379,7 +377,7 @@ const getAdvancedDashboard = async (req, res) => {
         userId,
         spentAt: { gte: monthStart, lte: monthEnd },
         ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: { is: { type: methodType } } } : {}),
+        ...(methodType ? { paymentMethod: methodType } : {}),
       },
     });
 

@@ -6,6 +6,7 @@ import { AuthContext } from "../context/AuthContext";
 const Header = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const isAuthed = !!user;
 
   const initials =
     user?.name
@@ -66,16 +67,27 @@ const Header = () => {
             </Menu.Item>
             <div className="my-2 border-t border-white/10" />
             <Menu.Item>
-              {({ active }) => (
-                <button
-                  onClick={handleLogout}
-                  className={`block w-full rounded-lg px-3 py-2 text-left text-red-300 ${
-                    active ? "bg-white/10" : ""
-                  }`}
-                >
-                  Log out
-                </button>
-              )}
+              {({ active }) =>
+                isAuthed ? (
+                  <button
+                    onClick={handleLogout}
+                    className={`block w-full rounded-lg px-3 py-2 text-left text-red-300 ${
+                      active ? "bg-white/10" : ""
+                    }`}
+                  >
+                    Log out
+                  </button>
+                ) : (
+                  <RouterLink
+                    to="/login"
+                    className={`block w-full rounded-lg px-3 py-2 text-left text-cyan-300 ${
+                      active ? "bg-white/10" : ""
+                    }`}
+                  >
+                    Login
+                  </RouterLink>
+                )
+              }
             </Menu.Item>
           </Menu.Items>
         </Menu>

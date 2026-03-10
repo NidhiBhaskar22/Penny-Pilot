@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import axiosClient from "../api/axiosClient";
 
@@ -10,69 +10,28 @@ const METHOD_OPTIONS = [
   { value: "CASH", label: "Cash" },
 ];
 
-function TreeNode({ node, onDelete, level = 0 }) {
-  return (
-    <div className="space-y-3">
-      <div
-        className="flex items-center justify-between rounded-xl border border-[#4f87df]/35 bg-[rgba(8,20,66,0.75)] px-4 py-3"
-        style={{ marginLeft: `${level * 16}px` }}
-      >
-        <div>
-          <div className="text-sm font-semibold text-mist">{node.name}</div>
-          <div className="text-xs text-mist/70">
-            {node.type}
-            {node.identifier ? ` | ${node.identifier}` : ""}
-            {node.balance != null ? ` | Balance: ${Number(node.balance).toLocaleString("en-IN")}` : ""}
-          </div>
-        </div>
-        <button
-          type="button"
-          className="rounded-md bg-red-600/20 px-3 py-1.5 text-xs font-semibold text-red-200"
-          onClick={() => onDelete(node.id)}
-        >
-          Remove
-        </button>
-      </div>
-      {node.children?.map((child) => (
-        <TreeNode key={child.id} node={child} level={level + 1} onDelete={onDelete} />
-      ))}
-    </div>
-  );
-}
-
 export default function AccountsPage() {
-  const [tree, setTree] = useState([]);
-  const [allAccounts, setAllAccounts] = useState([]);
   const [banks, setBanks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [savingMethod, setSavingMethod] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const [notice, setNotice] = useState("");
-
-  const [selectedBankId, setSelectedBankId] = useState("");
   const [name, setName] = useState("");
-  const [identifier, setIdentifier] = useState("");
   const [openingBalance, setOpeningBalance] = useState("");
   const [bankIdentifier, setBankIdentifier] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editIdentifier, setEditIdentifier] = useState("");
+  const [editBalance, setEditBalance] = useState("");
+  const [editMethods, setEditMethods] = useState([]);
 
   const load = async () => {
     setLoading(true);
     setNotice("");
     try {
-      const [treeRes, allRes] = await Promise.all([
-        axiosClient.get("/accounts", { params: { tree: true } }),
-        axiosClient.get("/accounts"),
-      ]);
+      const allRes = await axiosClient.get("/accounts");
       const all = Array.isArray(allRes.data) ? allRes.data : [];
-      const bankRoots = all.filter(
-        (a) => String(a.type).toUpperCase() === "BANK" && a.parentId == null
-      );
-      setAllAccounts(all);
-      setTree(Array.isArray(treeRes.data) ? treeRes.data : []);
-      setBanks(bankRoots);
-      if (!selectedBankId && bankRoots[0]?.id) {
-        setSelectedBankId(String(bankRoots[0].id));
-      }
+      setBanks(all);
     } catch (err) {
       setNotice(err.response?.data?.message || "Failed to load accounts");
     } finally {
@@ -84,21 +43,22 @@ export default function AccountsPage() {
     load();
   }, []);
 
-  const selectedBank = useMemo(
-    () => banks.find((b) => String(b.id) === String(selectedBankId)) || null,
-    [banks, selectedBankId]
-  );
+  const startEdit = (bank) => {
+    setEditingId(bank.id);
+    setEditName(bank.name || "");
+    setEditIdentifier(bank.identifier || "");
+    setEditBalance(bank.balance != null ? String(bank.balance) : "0");
+    setEditMethods(Array.isArray(bank.enabledMethods) ? bank.enabledMethods : []);
+    setNotice("");
+  };
 
-  const enabledMethods = useMemo(
-    () =>
-      allAccounts.filter(
-        (a) => a.parentId != null && String(a.parentId) === String(selectedBankId)
-      ),
-    [allAccounts, selectedBankId]
-  );
-
-  const isMethodEnabled = (type) =>
-    enabledMethods.some((m) => String(m.type).toUpperCase() === String(type).toUpperCase());
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName("");
+    setEditIdentifier("");
+    setEditBalance("");
+    setEditMethods([]);
+  };
 
   const onCreate = async (e) => {
     e.preventDefault();
@@ -111,10 +71,8 @@ export default function AccountsPage() {
     try {
       setSaving(true);
       await axiosClient.post("/accounts", {
-        type: "BANK",
         name: name.trim(),
         identifier: bankIdentifier.trim() || null,
-        parentId: null,
         balance: openingBalance ? Number(openingBalance) : 0,
       });
       setName("");
@@ -128,36 +86,36 @@ export default function AccountsPage() {
     }
   };
 
-  const toggleMethod = async (methodType, enabled) => {
-    if (!selectedBank) {
-      setNotice("Select a bank account first");
+  const toggleEditMethod = (methodType, enabled) => {
+    setEditMethods((prev) => {
+      if (enabled) return Array.from(new Set([...prev, methodType]));
+      return prev.filter((m) => m !== methodType);
+    });
+  };
+
+  const onSaveEdit = async () => {
+    if (!editingId) return;
+    if (!editName.trim()) {
+      setNotice("Name is required");
       return;
     }
-
-    const existing = enabledMethods.find(
-      (m) => String(m.type).toUpperCase() === methodType.toUpperCase()
-    );
+    setSavingEdit(true);
     setNotice("");
-    setSavingMethod(methodType);
     try {
-      if (enabled && !existing) {
-        const label = METHOD_OPTIONS.find((x) => x.value === methodType)?.label || methodType;
-        await axiosClient.post("/accounts", {
-          type: methodType,
-          name: `${selectedBank.name} ${label}`,
-          parentId: Number(selectedBank.id),
-          balance: 0,
-        });
-      }
-
-      if (!enabled && existing) {
-        await axiosClient.delete(`/accounts/${existing.id}`);
-      }
+      await Promise.all([
+        axiosClient.put(`/accounts/${editingId}`, {
+          name: editName.trim(),
+          identifier: editIdentifier.trim() || null,
+          balance: editBalance === "" ? 0 : Number(editBalance),
+        }),
+        axiosClient.put(`/accounts/${editingId}/methods`, { methods: editMethods }),
+      ]);
+      cancelEdit();
       await load();
     } catch (err) {
-      setNotice(err.response?.data?.message || "Failed to update payment method");
+      setNotice(err.response?.data?.message || "Failed to update account");
     } finally {
-      setSavingMethod("");
+      setSavingEdit(false);
     }
   };
 
@@ -234,65 +192,128 @@ export default function AccountsPage() {
           </form>
 
           <div className="rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-6">
-            <div className="mb-4 text-lg font-semibold text-mist">Payment Methods by Bank</div>
-            <div className="mb-4">
-              <label className="mb-1 block text-sm text-mist">Select Bank</label>
-              <select
-                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
-                value={selectedBankId}
-                onChange={(e) => setSelectedBankId(e.target.value)}
-              >
-                <option value="">Select bank</option>
-                {banks.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {selectedBank ? (
-              <div className="space-y-3 rounded-xl border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] p-4">
-                <div className="text-sm font-semibold text-mist">{selectedBank.name}</div>
-                {METHOD_OPTIONS.map((opt) => {
-                  const enabled = isMethodEnabled(opt.value);
-                  return (
-                    <label
-                      key={opt.value}
-                      className="flex items-center justify-between rounded-md border border-[#4f87df]/25 bg-[rgba(8,20,66,0.5)] px-3 py-2 text-sm text-mist"
-                    >
-                      <span>{opt.label}</span>
-                      <input
-                        type="checkbox"
-                        checked={enabled}
-                        disabled={savingMethod === opt.value}
-                        onChange={(e) => toggleMethod(opt.value, e.target.checked)}
-                      />
-                    </label>
-                  );
-                })}
+            <div className="mb-4 text-lg font-semibold text-mist">Configured Accounts</div>
+            {loading ? (
+              <div className="text-mist/70">Loading...</div>
+            ) : banks.length ? (
+              <div className="overflow-hidden rounded-lg border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)]">
+                <table className="w-full text-left text-sm text-mist">
+                  <thead className="bg-[rgba(7,18,62,0.95)] uppercase tracking-wider text-xs text-mist">
+                    <tr>
+                      <th className="px-4 py-3">Name</th>
+                      <th className="px-4 py-3">Identifier</th>
+                      <th className="px-4 py-3">Balance</th>
+                      <th className="px-4 py-3">Methods</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {banks.map((bank, index) => {
+                      const isEditing = editingId === bank.id;
+                      const rowClass =
+                        index % 2 === 0 ? "bg-[rgba(7,18,62,0.78)]" : "bg-[rgba(10,25,78,0.78)]";
+                      return (
+                        <React.Fragment key={bank.id}>
+                          <tr className={rowClass}>
+                            <td className="px-4 py-4 font-semibold text-mist">{bank.name}</td>
+                            <td className="px-4 py-4 text-mist/80">{bank.identifier || "-"}</td>
+                            <td className="px-4 py-4 font-semibold text-mist">
+                              INR {Number(bank.balance || 0).toLocaleString("en-IN")}
+                            </td>
+                            <td className="px-4 py-4 text-mist/80">
+                              {(bank.enabledMethods || []).length
+                                ? bank.enabledMethods.map((m) => m.replaceAll("_", " ")).join(", ")
+                                : "No methods enabled"}
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                              <button
+                                type="button"
+                                className="rounded-md border border-[#4f87df]/45 px-3 py-1.5 text-xs font-semibold text-cyan-200"
+                                onClick={() => startEdit(bank)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="ml-2 rounded-md bg-red-600/20 px-3 py-1.5 text-xs font-semibold text-red-200"
+                                onClick={() => onDelete(bank.id)}
+                              >
+                                Delete
+                              </button>
+                            </td>
+                          </tr>
+                          {isEditing ? (
+                            <tr className="bg-[rgba(5,14,52,0.92)]">
+                              <td className="px-4 py-4" colSpan={5}>
+                                <div className="space-y-3">
+                                  <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                    <input
+                                      className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                                      value={editName}
+                                      onChange={(e) => setEditName(e.target.value)}
+                                      placeholder="Account name"
+                                    />
+                                    <input
+                                      className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                                      value={editIdentifier}
+                                      onChange={(e) => setEditIdentifier(e.target.value)}
+                                      placeholder="Identifier (optional)"
+                                    />
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                                      value={editBalance}
+                                      onChange={(e) => setEditBalance(e.target.value)}
+                                      placeholder="Balance"
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                    {METHOD_OPTIONS.map((opt) => (
+                                      <label
+                                        key={opt.value}
+                                        className="flex items-center justify-between rounded-md border border-[#4f87df]/25 bg-[rgba(8,20,66,0.5)] px-3 py-2 text-sm text-mist"
+                                      >
+                                        <span>{opt.label}</span>
+                                        <input
+                                          type="checkbox"
+                                          checked={editMethods.includes(opt.value)}
+                                          onChange={(e) => toggleEditMethod(opt.value, e.target.checked)}
+                                        />
+                                      </label>
+                                    ))}
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <button
+                                      type="button"
+                                      className="rounded-lg bg-[#22c0ff] px-3 py-2 text-sm font-semibold text-[#03102e] disabled:opacity-60"
+                                      onClick={onSaveEdit}
+                                      disabled={savingEdit}
+                                    >
+                                      {savingEdit ? "Saving..." : "Save"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-mist"
+                                      onClick={cancelEdit}
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : null}
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             ) : (
-              <div className="text-sm text-mist/70">Add/select a bank account to enable methods.</div>
+              <div className="text-mist/70">No accounts yet.</div>
             )}
           </div>
-        </div>
-
-        <div className="rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-6">
-          <div className="mb-4 text-lg font-semibold text-mist">Configured Structure</div>
-          {loading ? (
-            <div className="text-mist/70">Loading...</div>
-          ) : tree.length ? (
-            <div className="space-y-3">
-              {tree
-                .filter((node) => String(node.type).toUpperCase() === "BANK")
-                .map((node) => (
-                  <TreeNode key={node.id} node={node} onDelete={onDelete} />
-                ))}
-            </div>
-          ) : (
-            <div className="text-mist/70">No accounts yet.</div>
-          )}
         </div>
 
         <div className="text-xs text-mist/60">

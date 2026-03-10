@@ -15,7 +15,7 @@ const createSplitExpense = async (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const { amount, tag, spentAt, splits, accountId, categoryId } = req.body;
+    const { amount, spentAt, splits, accountId, categoryId } = req.body;
     if (!amount || !spentAt || !accountId || !categoryId) {
       return res.status(400).json({
         message: "amount, spentAt, accountId, categoryId are required",
@@ -34,7 +34,6 @@ const createSplitExpense = async (req, res) => {
         data: {
           userId,
           amount,
-          tag: tag || "General",
           spentAt: new Date(spentAt),
           month,
           week,

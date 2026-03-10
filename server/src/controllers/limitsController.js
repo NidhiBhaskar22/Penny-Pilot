@@ -1,5 +1,6 @@
 // controllers/limitsController.js
 const prisma = require("../config/prismaClient");
+const { parsePagination, buildPaginatedResult } = require("../utils/pagination");
 
 
 exports.createLimit = async (req, res) => {
@@ -7,8 +8,8 @@ exports.createLimit = async (req, res) => {
     const userId = req.user.userId;
     const { scope, amount, month, year, week, day, categoryId } = req.body;
 
-    if (!scope || amount == null) {
-      return res.status(400).json({ message: "scope and amount are required" });
+    if (!scope || amount == null || categoryId == null) {
+      return res.status(400).json({ message: "categoryId, scope and amount are required" });
     }
 
     // Basic scope validation
@@ -18,10 +19,14 @@ exports.createLimit = async (req, res) => {
     }
 
     // Ensure correct period fields per scope
-    if (scope === "MONTHLY" && (month == null || year == null)) {
-      return res
-        .status(400)
-        .json({ message: "month and year required for MONTHLY limits" });
+    if (scope === "MONTHLY") {
+      const bothNull = month == null && year == null; // "All Months"
+      const bothPresent = month != null && year != null;
+      if (!bothNull && !bothPresent) {
+        return res
+          .status(400)
+          .json({ message: "For MONTHLY limits, provide both month+year or keep both empty for all months" });
+      }
     }
 
     if (scope === "WEEKLY" && (week == null || year == null)) {
@@ -34,14 +39,12 @@ exports.createLimit = async (req, res) => {
       return res.status(400).json({ message: "day required for DAILY limits" });
     }
 
-    // Optional: verify category belongs to user
-    if (categoryId) {
-      const category = await prisma.category.findFirst({
-        where: { id: categoryId, userId },
-      });
-      if (!category) {
-        return res.status(404).json({ message: "Category not found for user" });
-      }
+    // verify category belongs to user
+    const category = await prisma.category.findFirst({
+      where: { id: categoryId, userId },
+    });
+    if (!category) {
+      return res.status(404).json({ message: "Category not found for user" });
     }
 
     // Prevent duplicates: same scope + same period + same categoryId
@@ -90,6 +93,7 @@ exports.getLimits = async (req, res) => {
     const userId = req.user.userId;
 
     const scope = req.query.scope;
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
     const month = req.query.month ? Number(req.query.month) : undefined;
     const year = req.query.year ? Number(req.query.year) : undefined;
     const week = req.query.week ? Number(req.query.week) : undefined;
@@ -97,22 +101,46 @@ exports.getLimits = async (req, res) => {
     const categoryId = req.query.categoryId
       ? Number(req.query.categoryId)
       : undefined;
+    const sortOrder = String(req.query.sortOrder || "desc").toLowerCase() === "asc" ? "asc" : "desc";
+    const sortByRaw = String(req.query.sortBy || "id");
+    const allowedSort = new Set(["id", "amount", "scope", "month", "year", "week"]);
+    const sortBy = allowedSort.has(sortByRaw) ? sortByRaw : "id";
 
-    const limits = await prisma.limit.findMany({
-      where: {
-        userId,
-        ...(scope ? { scope } : {}),
-        ...(month != null ? { month } : {}),
-        ...(year != null ? { year } : {}),
-        ...(week != null ? { week } : {}),
-        ...(day ? { day } : {}),
-        ...(categoryId != null ? { categoryId } : {}),
-      },
-      include: { category: true },
-      orderBy: { id: "desc" },
+    const { page, pageSize, skip, take } = parsePagination(req.query, {
+      defaultPageSize: 10,
+      maxPageSize: 100,
     });
 
-    return res.json(limits);
+    const where = {
+      userId,
+      ...(scope ? { scope } : {}),
+      ...(month != null ? { month } : {}),
+      ...(year != null ? { year } : {}),
+      ...(week != null ? { week } : {}),
+      ...(day ? { day } : {}),
+      ...(categoryId != null ? { categoryId } : {}),
+      ...(q ? { category: { name: { contains: q, mode: "insensitive" } } } : {}),
+    };
+
+    const [total, items] = await prisma.$transaction([
+      prisma.limit.count({ where }),
+      prisma.limit.findMany({
+        where,
+        include: { category: true },
+        orderBy: { [sortBy]: sortOrder },
+        skip,
+        take,
+      }),
+    ]);
+
+    return res.json(
+      buildPaginatedResult({
+        items,
+        total,
+        page,
+        pageSize,
+      })
+    );
   } catch (err) {
     console.error("getLimits error:", err);
     return res.status(500).json({ message: "Failed to fetch limits" });
@@ -126,6 +154,11 @@ exports.updateLimit = async (req, res) => {
     const limitId = Number(req.params.id);
 
     const { scope, amount, month, year, week, day, categoryId } = req.body;
+    const hasMonth = Object.prototype.hasOwnProperty.call(req.body, "month");
+    const hasYear = Object.prototype.hasOwnProperty.call(req.body, "year");
+    const hasWeek = Object.prototype.hasOwnProperty.call(req.body, "week");
+    const hasDay = Object.prototype.hasOwnProperty.call(req.body, "day");
+    const hasCategoryId = Object.prototype.hasOwnProperty.call(req.body, "categoryId");
 
     const existing = await prisma.limit.findFirst({
       where: { id: limitId, userId },
@@ -138,13 +171,16 @@ exports.updateLimit = async (req, res) => {
     // If scope changes, re-validate fields
     const newScope = scope ?? existing.scope;
 
-    if (
-      newScope === "MONTHLY" &&
-      ((month ?? existing.month) == null || (year ?? existing.year) == null)
-    ) {
-      return res
-        .status(400)
-        .json({ message: "month and year required for MONTHLY limits" });
+    if (newScope === "MONTHLY") {
+      const effectiveMonth = hasMonth ? month : existing.month;
+      const effectiveYear = hasYear ? year : existing.year;
+      const bothNull = effectiveMonth == null && effectiveYear == null;
+      const bothPresent = effectiveMonth != null && effectiveYear != null;
+      if (!bothNull && !bothPresent) {
+        return res
+          .status(400)
+          .json({ message: "For MONTHLY limits, provide both month+year or keep both empty for all months" });
+      }
     }
     if (
       newScope === "WEEKLY" &&
@@ -158,13 +194,16 @@ exports.updateLimit = async (req, res) => {
       return res.status(400).json({ message: "day required for DAILY limits" });
     }
 
-    if (categoryId) {
-      const category = await prisma.category.findFirst({
-        where: { id: categoryId, userId },
-      });
-      if (!category) {
-        return res.status(404).json({ message: "Category not found for user" });
-      }
+    const effectiveCategoryId = hasCategoryId ? categoryId : existing.categoryId;
+    if (effectiveCategoryId == null) {
+      return res.status(400).json({ message: "categoryId is required" });
+    }
+
+    const category = await prisma.category.findFirst({
+      where: { id: effectiveCategoryId, userId },
+    });
+    if (!category) {
+      return res.status(404).json({ message: "Category not found for user" });
     }
 
     const updated = await prisma.limit.update({
@@ -172,11 +211,11 @@ exports.updateLimit = async (req, res) => {
       data: {
         ...(scope ? { scope } : {}),
         ...(amount != null ? { amount } : {}),
-        ...(month != null ? { month } : {}),
-        ...(year != null ? { year } : {}),
-        ...(week != null ? { week } : {}),
-        ...(day ? { day: new Date(day) } : {}),
-        ...(categoryId != null ? { categoryId } : {}),
+        ...(hasMonth ? { month: month ?? null } : {}),
+        ...(hasYear ? { year: year ?? null } : {}),
+        ...(hasWeek ? { week: week ?? null } : {}),
+        ...(hasDay ? { day: day ? new Date(day) : null } : {}),
+        ...(hasCategoryId ? { categoryId } : {}),
       },
     });
 
@@ -231,6 +270,7 @@ exports.getActiveLimits = async (req, res) => {
         userId,
         OR: [
           { scope: "MONTHLY", month, year },
+          { scope: "MONTHLY", month: null, year: null },
           { scope: "WEEKLY", week, year },
           { scope: "DAILY", day },
         ],
