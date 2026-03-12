@@ -93,20 +93,32 @@ export default function OverviewSection() {
               fill="none"
               aria-hidden="true"
             >
-              <path
+              <motion.path
                 d="M 336 256 C 292 240, 252 234, 222 246"
                 stroke="rgba(255,255,255,0.18)"
                 strokeWidth="1.5"
+                initial={{ pathLength: 0, opacity: 0.2 }}
+                whileInView={{ pathLength: 1, opacity: 1 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ duration: 0.9, ease: "easeInOut" }}
               />
-              <path
+              <motion.path
                 d="M 360 230 C 392 186, 432 154, 474 134"
                 stroke="rgba(255,255,255,0.18)"
                 strokeWidth="1.5"
+                initial={{ pathLength: 0, opacity: 0.2 }}
+                whileInView={{ pathLength: 1, opacity: 1 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ duration: 0.9, delay: 0.1, ease: "easeInOut" }}
               />
-              <path
+              <motion.path
                 d="M 362 292 C 402 332, 430 364, 468 390"
                 stroke="rgba(255,255,255,0.18)"
                 strokeWidth="1.5"
+                initial={{ pathLength: 0, opacity: 0.2 }}
+                whileInView={{ pathLength: 1, opacity: 1 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ duration: 0.9, delay: 0.2, ease: "easeInOut" }}
               />
             </svg>
 
@@ -151,10 +163,17 @@ export default function OverviewSection() {
               </motion.div>
             ))}
 
-            {orbitItems.map((item) => (
-              <span
+            {orbitItems.map((item, index) => (
+              <motion.span
                 key={`${item.label}-dot`}
                 className={`absolute z-20 h-3.5 w-3.5 rounded-full bg-teal shadow-[0_0_18px_rgba(113,221,210,0.8)] ${item.dotClass}`}
+                animate={{ scale: [1, 1.35, 1], opacity: [0.7, 1, 0.7] }}
+                transition={{
+                  duration: 2.6,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                  delay: index * 0.35,
+                }}
               />
             ))}
           </div>

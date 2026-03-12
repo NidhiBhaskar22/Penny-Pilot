@@ -16,6 +16,7 @@ export default function WorkflowSection() {
   const sectionRef = useRef(null);
   const pathRef = useRef(null);
   const pulseRef = useRef(null);
+  const pulseHaloRef = useRef(null);
   const cardRefs = useRef([]);
   const dotRefs = useRef([]);
 
@@ -23,8 +24,9 @@ export default function WorkflowSection() {
     const section = sectionRef.current;
     const path = pathRef.current;
     const pulse = pulseRef.current;
+    const pulseHalo = pulseHaloRef.current;
 
-    if (!section || !path || !pulse) {
+    if (!section || !path || !pulse || !pulseHalo) {
       return undefined;
     }
 
@@ -81,11 +83,11 @@ export default function WorkflowSection() {
       );
 
       if (reduceMotion) {
-        gsap.set(pulse, { autoAlpha: 0 });
+        gsap.set([pulse, pulseHalo], { autoAlpha: 0 });
         return;
       }
 
-      gsap.to(pulse, {
+      gsap.to([pulse, pulseHalo], {
         duration: 8,
         repeat: -1,
         ease: "none",
@@ -100,6 +102,15 @@ export default function WorkflowSection() {
       gsap.to(pulse, {
         scale: 1.15,
         duration: 1.2,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut",
+      });
+
+      gsap.to(pulseHalo, {
+        scale: 1.8,
+        opacity: 0.18,
+        duration: 1.4,
         repeat: -1,
         yoyo: true,
         ease: "sine.inOut",
@@ -150,6 +161,10 @@ export default function WorkflowSection() {
           />
         </svg>
 
+        <div
+          ref={pulseHaloRef}
+          className="absolute left-0 top-0 z-10 h-10 w-10 rounded-full bg-teal/20 blur-md"
+        />
         <div
           ref={pulseRef}
           className="absolute left-0 top-0 z-20 h-5 w-5 rounded-full bg-teal shadow-[0_0_24px_rgba(113,221,210,0.85)]"

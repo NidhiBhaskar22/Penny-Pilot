@@ -1,36 +1,64 @@
-import Logo from "../../assests/PennyPilot.png";
+import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import { fadeUp } from "./content";
 
 const MotionSection = motion.section;
+const heroWords = ["Track", "every", "rupee.", "Plan", "every", "move."];
 
 export default function HeroSection() {
+  const [glowPosition, setGlowPosition] = useState({ x: 55, y: 42 });
+
   return (
     <MotionSection
-      className="mx-auto grid max-w-[1200px] gap-12 px-6 pb-16 pt-6 md:grid-cols-[1.15fr_0.85fr] md:px-8 md:pb-24"
+      className="mx-auto max-w-max px-6 pb-16 pt-6 md:px-8 md:pb-24"
       initial="hidden"
       animate="visible"
+      onMouseMove={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const x = ((event.clientX - rect.left) / rect.width) * 100;
+        const y = ((event.clientY - rect.top) / rect.height) * 100;
+        setGlowPosition({ x, y });
+      }}
     >
-      <div className="flex flex-col justify-center">
+      <div className="relative flex flex-col justify-center overflow-hidden ">
         <motion.div
-          className="mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-[#4f87df]/35 bg-[rgba(8,20,66,0.72)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-mist/75"
+          className="pointer-events-none absolute inset-0 rounded-[36px] opacity-70 blur-3xl"
+          animate={{
+            background: `radial-gradient(circle at ${glowPosition.x}% ${glowPosition.y}%, rgba(113,221,210,0.16), rgba(79,135,223,0.06) 22%, rgba(0,0,0,0) 52%)`,
+          }}
+          transition={{ duration: 0.25, ease: "linear" }}
+        />
+        <motion.div
+          className="pointer-events-none absolute left-0 top-0 h-px w-40 bg-gradient-to-r from-transparent via-teal to-transparent"
+          animate={{ x: [0, 220, 0], opacity: [0.25, 0.95, 0.25] }}
+          transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+        />
+
+        <motion.div
+          className="relative z-10 mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-[#4f87df]/35 bg-[rgba(8,20,66,0.72)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-mist/75"
           variants={fadeUp}
           custom={0}
         >
           Personal Finance Command Center
         </motion.div>
 
-        <motion.h1
-          className="max-w-3xl text-5xl font-black leading-[0.95] text-mist md:text-7xl"
-          variants={fadeUp}
-          custom={1}
-        >
-          Track every rupee. Plan every move.
-        </motion.h1>
+        <div className="relative z-10 max-w-3xl text-5xl font-black leading-[0.95] text-mist md:text-7xl">
+          {heroWords.map((word, index) => (
+            <motion.span
+              key={`${word}-${index}`}
+              className="mr-[0.25em] inline-block"
+              initial={{ opacity: 0, y: 22, filter: "blur(8px)" }}
+              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ duration: 0.55, delay: 0.12 + index * 0.07, ease: "easeOut" }}
+            >
+              {word}
+            </motion.span>
+          ))}
+        </div>
 
         <motion.p
-          className="mt-6 max-w-2xl text-base leading-7 text-mist/78 md:text-lg"
+          className="relative z-10 mt-6 max-w-2xl text-base leading-7 text-mist/78 md:text-lg"
           variants={fadeUp}
           custom={2}
         >
@@ -40,7 +68,7 @@ export default function HeroSection() {
         </motion.p>
 
         <motion.div
-          className="mt-8 flex flex-wrap gap-4"
+          className="relative z-10 mt-8 flex flex-wrap gap-4"
           variants={fadeUp}
           custom={3}
         >
@@ -57,64 +85,29 @@ export default function HeroSection() {
             See Dashboard
           </RouterLink>
         </motion.div>
+
+        <motion.div
+          className="relative z-10 mt-8 flex flex-wrap items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-mist/48"
+          variants={fadeUp}
+          custom={4}
+        >
+          {["Budgets", "Investments", "EMIs", "Accounts"].map((item, index) => (
+            <motion.span
+              key={item}
+              className="rounded-full border border-white/10 bg-[rgba(8,20,66,0.44)] px-3 py-1.5"
+              animate={{ y: [0, -4, 0] }}
+              transition={{
+                duration: 2.8,
+                repeat: Infinity,
+                ease: "easeInOut",
+                delay: index * 0.22,
+              }}
+            >
+              {item}
+            </motion.span>
+          ))}
+        </motion.div>
       </div>
-
-      <motion.div
-        className="relative rounded-[28px] border border-[#4f87df]/28 bg-[linear-gradient(160deg,rgba(6,17,54,0.92),rgba(6,10,26,0.78))] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.55)] backdrop-blur"
-        variants={fadeUp}
-        custom={2}
-      >
-        <div className="absolute right-5 top-5 rounded-full bg-peach px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-brand-900">
-          Live View
-        </div>
-
-        <div className="rounded-3xl border border-white/10 bg-[rgba(3,8,38,0.7)] p-4">
-          <img
-            src={Logo}
-            alt="PennyPilot logo"
-            className="mx-auto max-h-[120px] rounded-2xl"
-            draggable={false}
-          />
-        </div>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl border border-[#3a63b5]/35 bg-[rgba(7,18,60,0.62)] p-4">
-            <div className="text-[11px] uppercase tracking-[0.24em] text-mist/55">
-              Monthly pulse
-            </div>
-            <div className="mt-2 text-3xl font-black text-mist">Stable</div>
-            <div className="mt-2 text-sm text-mist/65">
-              Income, expenses, and commitments aligned in one view.
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-[#3a63b5]/35 bg-[rgba(7,18,60,0.62)] p-4">
-            <div className="text-[11px] uppercase tracking-[0.24em] text-mist/55">
-              Budget pressure
-            </div>
-            <div className="mt-2 text-3xl font-black text-peach">Visible</div>
-            <div className="mt-2 text-sm text-mist/65">
-              Spot category spikes before they swallow next month.
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-[#3a63b5]/35 bg-[rgba(7,18,60,0.62)] p-4 sm:col-span-2">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <div className="text-[11px] uppercase tracking-[0.24em] text-mist/55">
-                  Planning stack
-                </div>
-                <div className="mt-2 text-lg font-bold text-mist">
-                  Goals, EMIs, loans, investments
-                </div>
-              </div>
-              <div className="rounded-full bg-teal px-4 py-2 text-xs font-bold uppercase tracking-[0.2em] text-mist">
-                Actionable
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
     </MotionSection>
   );
 }
