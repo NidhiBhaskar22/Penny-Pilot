@@ -1,2 +1,1 @@
--- AlterTable
-ALTER TABLE "public"."Income" ADD COLUMN     "salaryBreakdown" TEXT;
+-- Squashed into 20250901064621_init
