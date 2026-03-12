@@ -17,7 +17,7 @@ const LoginPage = () => {
     try {
       setError("");
       await login({ email, password });
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
     }
@@ -34,23 +34,25 @@ const LoginPage = () => {
 
     try {
       await loginWithGoogle(idToken);
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       setError(err.response?.data?.message || "Google sign-in failed");
     }
   };
 
   return (
-    <div
-      className="min-h-screen bg-[#111214] bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: `url(${bgAuth})` }}
-    >
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(18,34,84,0.45),rgba(10,13,22,1)_56%)]">
       <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-4">
         <div className="grid w-full overflow-hidden rounded-[28px] border border-white/10 bg-white shadow-[0_24px_80px_rgba(0,0,0,0.45)] lg:grid-cols-[1.05fr_1fr]">
-          <div
-            className="relative min-h-[320px] bg-cover bg-center text-white lg:min-h-[640px]"
-            style={{ backgroundImage: `url(${bgAuth})` }}
-          >
+          <div className="relative min-h-[320px] overflow-hidden text-white lg:min-h-[640px]">
+            <img
+              src={bgAuth}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
+            />
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/20 to-black/70" />
             <div className="relative z-10 flex h-full items-end p-8 lg:p-10">
               <div>

@@ -19,6 +19,7 @@ export default function AccountsPage() {
   const [name, setName] = useState("");
   const [openingBalance, setOpeningBalance] = useState("");
   const [bankIdentifier, setBankIdentifier] = useState("");
+  const [selectedMethods, setSelectedMethods] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   const [editIdentifier, setEditIdentifier] = useState("");
@@ -67,6 +68,10 @@ export default function AccountsPage() {
       setNotice("Name is required");
       return;
     }
+    if (!selectedMethods.length) {
+      setNotice("Enable at least one payment method while creating the account");
+      return;
+    }
 
     try {
       setSaving(true);
@@ -74,10 +79,12 @@ export default function AccountsPage() {
         name: name.trim(),
         identifier: bankIdentifier.trim() || null,
         balance: openingBalance ? Number(openingBalance) : 0,
+        methods: selectedMethods,
       });
       setName("");
       setBankIdentifier("");
       setOpeningBalance("");
+      setSelectedMethods([]);
       await load();
     } catch (err) {
       setNotice(err.response?.data?.message || "Failed to create account");
@@ -88,6 +95,13 @@ export default function AccountsPage() {
 
   const toggleEditMethod = (methodType, enabled) => {
     setEditMethods((prev) => {
+      if (enabled) return Array.from(new Set([...prev, methodType]));
+      return prev.filter((m) => m !== methodType);
+    });
+  };
+
+  const toggleCreateMethod = (methodType, enabled) => {
+    setSelectedMethods((prev) => {
       if (enabled) return Array.from(new Set([...prev, methodType]));
       return prev.filter((m) => m !== methodType);
     });
@@ -134,7 +148,7 @@ export default function AccountsPage() {
         <div className="rounded-2xl border border-[#3a63b5]/45 bg-[rgba(4,12,46,0.9)] p-6">
           <h1 className="text-3xl font-extrabold text-mist">Funds & Accounts</h1>
           <p className="mt-2 text-sm text-mist/70">
-            Add bank accounts, then enable payment methods per bank.
+            Add bank accounts and enable the payment methods they support at creation time.
           </p>
         </div>
 
@@ -174,6 +188,28 @@ export default function AccountsPage() {
                 value={openingBalance}
                 onChange={(e) => setOpeningBalance(e.target.value)}
               />
+            </div>
+
+            <div>
+              <div className="mb-2 block text-sm text-mist">Enable Payment Methods</div>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {METHOD_OPTIONS.map((opt) => (
+                  <label
+                    key={opt.value}
+                    className="flex items-center justify-between rounded-md border border-[#4f87df]/25 bg-[rgba(8,20,66,0.5)] px-3 py-2 text-sm text-mist"
+                  >
+                    <span>{opt.label}</span>
+                    <input
+                      type="checkbox"
+                      checked={selectedMethods.includes(opt.value)}
+                      onChange={(e) => toggleCreateMethod(opt.value, e.target.checked)}
+                    />
+                  </label>
+                ))}
+              </div>
+              <div className="mt-2 text-xs text-mist/60">
+                Select the methods this account should allow for future transactions.
+              </div>
             </div>
 
             {notice ? (
@@ -311,7 +347,9 @@ export default function AccountsPage() {
                 </table>
               </div>
             ) : (
-              <div className="text-mist/70">No accounts yet.</div>
+              <div className="text-mist/70">
+                No accounts yet. Create one and enable its payment methods to get started.
+              </div>
             )}
           </div>
         </div>

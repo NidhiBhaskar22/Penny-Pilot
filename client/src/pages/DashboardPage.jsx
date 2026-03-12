@@ -221,6 +221,36 @@ const DashboardPage = () => {
   const hasPendingChanges =
     JSON.stringify(draftFilters) !== JSON.stringify(appliedFilters);
 
+  if (!loading && accounts.length === 0) {
+    return (
+      <AppShell>
+        <div className="mx-auto mt-12 max-w-4xl px-4">
+          <div className="rounded-2xl border border-[#3a63b5]/45 bg-gradient-to-br from-[rgba(3,10,40,0.94)] to-[rgba(6,20,68,0.9)] p-8 shadow-[0_18px_45px_rgba(0,0,0,0.56),0_0_30px_rgba(0,190,255,0.12)]">
+            <div className="text-xs font-bold uppercase tracking-[0.24em] text-cyan-200/80">
+              Setup Required
+            </div>
+            <h1 className="mt-4 text-3xl font-extrabold text-mist">
+              Set up an account first
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-mist/72">
+              Your dashboard needs at least one account before it can track balances,
+              payment methods, income, expenses, and investments. Create an account
+              and enable the payment methods you use to continue.
+            </p>
+            <div className="mt-6">
+              <Link
+                to="/accounts"
+                className="inline-flex h-10 items-center rounded-md bg-[#22c0ff]/95 px-4 text-sm font-semibold text-[#03102e] transition hover:bg-[#52d0ff]"
+              >
+                Go to Accounts
+              </Link>
+            </div>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
   const handleApplyFilters = () => {
     setAppliedFilters(draftFilters);
   };

@@ -61,8 +61,16 @@ async function createAccount(userId, payload) {
   const validUserId = await assertUserExists(userId);
   const name = String(payload.name || "").trim();
   const identifier = payload.identifier ? String(payload.identifier).trim() : null;
+  const normalizedMethods = Array.from(
+    new Set((Array.isArray(payload.methods) ? payload.methods : []).map(normalizeMethod))
+  );
 
   if (!name) throw new ApiError(400, "name is required");
+
+  const invalid = normalizedMethods.filter((m) => !METHOD_TYPES.includes(m));
+  if (invalid.length) {
+    throw new ApiError(400, `Invalid methods: ${invalid.join(", ")}`);
+  }
 
   const exists = await prisma.account.findFirst({
     where: {
@@ -73,16 +81,32 @@ async function createAccount(userId, payload) {
   });
   if (exists) throw new ApiError(409, "Account with same name already exists");
 
-  return prisma.account.create({
-    data: {
-      userId: validUserId,
-      name,
-      identifier,
-      balance: Number(payload.balance ?? 0),
-    },
-    include: {
-      methods: true,
-    },
+  return prisma.$transaction(async (tx) => {
+    const account = await tx.account.create({
+      data: {
+        userId: validUserId,
+        name,
+        identifier,
+        balance: Number(payload.balance ?? 0),
+      },
+    });
+
+    if (normalizedMethods.length) {
+      await tx.accountMethod.createMany({
+        data: normalizedMethods.map((method) => ({
+          accountId: account.id,
+          method,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return tx.account.findUnique({
+      where: { id: account.id },
+      include: {
+        methods: true,
+      },
+    });
   });
 }
 
