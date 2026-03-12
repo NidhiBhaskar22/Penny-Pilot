@@ -1,10 +1,11 @@
 // src/pages/DashboardPage.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { Clock3, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import axiosClient from "../api/axiosClient";
 
 import TimeframeSelector from "../components/dashboard/TimeframeSelector";
-import LimitsDiffDisplayByCategory from "../components/dashboard/LimitsDiffDisplay";
 import AppShell from "../components/layout/AppShell";
 import AnimatedNumber from "../components/dashboard/AnimatedNumber";
 
@@ -74,24 +75,15 @@ const KpiCard = ({ label, value, badge }) => (
   </MotionBox>
 );
 
-const StatCard = ({ title, value, unit, accent }) => (
-  <div className="relative overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-8 shadow-[0_16px_42px_rgba(0,0,0,0.48),0_0_24px_rgba(0,170,255,0.12)]">
-    <div className="flex items-center justify-between">
-      <div className="space-y-1">
-        <div className="text-sm tracking-wider text-mist/80">{title}</div>
-        <div className="text-3xl font-bold" style={{ color: accent }}>
-          {value}
-          {unit ? <span className="ml-1 text-sm opacity-70">{unit}</span> : null}
-        </div>
-      </div>
-      <div
-        className="relative h-16 w-16 rounded-full border-[6px]"
-        style={{ borderColor: accent, boxShadow: `0 0 18px ${accent}` }}
-      >
-        <div
-          className="absolute inset-2 rounded-full"
-          style={{ background: accent, opacity: 0.2 }}
-        />
+const InlineStat = ({ title, value, icon: Icon, accentClass, iconBgClass }) => (
+  <div className="flex min-w-0 items-center gap-3 rounded-xl border border-[#3a63b5]/28 bg-[rgba(7,18,60,0.68)] px-4 py-3">
+    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBgClass}`}>
+      <Icon className={`h-5 w-5 ${accentClass}`} strokeWidth={2.1} />
+    </div>
+    <div className="min-w-0">
+      <div className="text-[11px] uppercase tracking-[0.22em] text-mist/58">{title}</div>
+      <div className={`truncate text-xl font-bold ${accentClass}`}>
+        {Number(value ?? 0).toLocaleString("en-IN")}
       </div>
     </div>
   </div>
@@ -181,6 +173,24 @@ const DashboardPage = () => {
                 totalInvestment: 0,
                 balances: { current: 0, lastWeek: 0, lastMonth: 0 },
                 expenseDifferenceByCategory: [],
+                insights: {
+                  spendAnomalies: { topAnomalies: [] },
+                  incomeStability: { stabilityScore: 0, topSource: null },
+                  investmentHealth: {
+                    concentration: { level: "low", topHoldingShare: 0, topHoldings: [] },
+                    roiTrend: { direction: "flat", monthlyWeightedRoi: [] },
+                  },
+                  riskForecast: {
+                    confidence: "low",
+                    monthEndProjection: { income: 0, expense: 0, saving: 0 },
+                    riskSignals: {
+                      expenseOverrunRisk: false,
+                      incomeShortfallRisk: false,
+                      monthlyLimitTotal: 0,
+                    },
+                    savingsRunway: { currentBalance: 0, dailyBurn: 0, runwayDays: null },
+                  },
+                },
               },
           );
         }
@@ -264,6 +274,14 @@ const DashboardPage = () => {
                   Active Window: {summary.label}
                 </div>
               )}
+              <div className="mt-4">
+                <Link
+                  to="/analysis"
+                  className="inline-flex h-9 items-center rounded-md border border-[#4f87df]/30 px-3 text-sm font-semibold text-cyan-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
+                >
+                  Open Full Analysis
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -278,19 +296,19 @@ const DashboardPage = () => {
             <KpiCard label="Net Flow" value={netFlow} badge="DELTA" />
           </div>
 
-          <div className="mb-8 rounded-xl border border-[#3a63b5]/30 bg-[rgba(4,12,46,0.6)] p-3">
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-3 xl:grid-cols-7">
+          <div className="mb-8 rounded-lg border border-[#3a63b5]/20 bg-[rgba(4,12,46,0.45)] p-2.5">
+            <div className="grid grid-cols-1 gap-1.5 md:grid-cols-3 xl:grid-cols-7">
               <TimeframeSelector
                 timeframe={draftFilters.timeframe}
                 setTimeframe={(value) =>
                   setDraftFilters((prev) => ({ ...prev, timeframe: value }))
                 }
-                className="h-9 rounded-md border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] text-sm"
+                className="h-8 rounded-md border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] text-sm"
               />
               {draftFilters.timeframe === "monthly" && (
                 <input
                   type="month"
-                  className="h-9 rounded-md border border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
                   value={draftFilters.anchorMonth}
                   onChange={(e) =>
                     setDraftFilters((prev) => ({
@@ -303,7 +321,7 @@ const DashboardPage = () => {
               {draftFilters.timeframe === "weekly" && (
                 <input
                   type="week"
-                  className="h-9 rounded-md border border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
                   value={draftFilters.anchorWeek}
                   onChange={(e) =>
                     setDraftFilters((prev) => ({
@@ -316,7 +334,7 @@ const DashboardPage = () => {
               {draftFilters.timeframe === "daily" && (
                 <input
                   type="date"
-                  className="h-9 rounded-md border border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
                   value={draftFilters.anchorDate}
                   onChange={(e) =>
                     setDraftFilters((prev) => ({
@@ -331,7 +349,7 @@ const DashboardPage = () => {
                   type="number"
                   min="2000"
                   max="2100"
-                  className="h-9 rounded-md border border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
                   value={draftFilters.anchorYear}
                   onChange={(e) =>
                     setDraftFilters((prev) => ({
@@ -343,7 +361,7 @@ const DashboardPage = () => {
                 />
               )}
               <select
-                className="h-9 rounded-md border border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
                 value={draftFilters.accountId}
                 onChange={(e) =>
                   setDraftFilters((prev) => ({ ...prev, accountId: e.target.value }))
@@ -357,7 +375,7 @@ const DashboardPage = () => {
                 ))}
               </select>
               <select
-                className="h-9 rounded-md border border-[#4f87df]/35 bg-[rgba(4,12,46,0.7)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
                 value={draftFilters.methodType}
                 onChange={(e) =>
                   setDraftFilters((prev) => ({ ...prev, methodType: e.target.value }))
@@ -372,29 +390,29 @@ const DashboardPage = () => {
               <button
                 type="button"
                 onClick={handleCurrentAnchor}
-                className="h-9 rounded-md border border-[#4f87df]/35 px-3 text-sm text-mist/85"
+                className="h-8 rounded-md border border-[#4f87df]/25 px-2.5 text-sm text-mist/80"
               >
                 Today
               </button>
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="h-9 rounded-md border border-[#4f87df]/35 px-3 text-sm text-mist/85"
+                className="h-8 rounded-md border border-[#4f87df]/25 px-2.5 text-sm text-mist/80"
               >
                 Reset
               </button>
               <button
                 type="button"
                 onClick={handleApplyFilters}
-                className="h-9 rounded-md bg-[#22c0ff] px-4 text-sm font-semibold text-[#03102e] disabled:opacity-50"
+                className="h-8 rounded-md bg-[#22c0ff]/95 px-3 text-sm font-semibold text-[#03102e] disabled:opacity-50"
                 disabled={!hasPendingChanges}
               >
-                Apply Filters
+                Apply
               </button>
             </div>
           </div>
 
-          <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="mb-8">
             <div className="relative overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-0 shadow-[0_16px_42px_rgba(0,0,0,0.48),0_0_24px_rgba(0,170,255,0.12)]">
               <div className="p-6">
                 <div className="mb-4 flex items-center justify-between">
@@ -405,38 +423,37 @@ const DashboardPage = () => {
                     Live
                   </span>
                 </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <StatCard
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <InlineStat
                     title="Balance"
                     value={summary.balances.current}
-                    accent="rgb(72, 216, 255)"
+                    icon={Wallet}
+                    accentClass="text-cyan-300"
+                    iconBgClass="bg-cyan-400/12"
                   />
-                  <StatCard
+                  <InlineStat
                     title="Last Week"
                     value={summary.balances.lastWeek}
-                    accent="rgb(123, 173, 255)"
+                    icon={Clock3}
+                    accentClass="text-blue-300"
+                    iconBgClass="bg-blue-400/12"
                   />
-                  <StatCard
+                  <InlineStat
                     title="Last Month"
                     value={summary.balances.lastMonth}
-                    accent="rgb(153, 135, 255)"
+                    icon={Clock3}
+                    accentClass="text-violet-300"
+                    iconBgClass="bg-violet-400/12"
                   />
-                  <StatCard
+                  <InlineStat
                     title="Net Flow"
                     value={netFlow}
-                    accent="rgb(48, 194, 255)"
+                    icon={netFlow < 0 ? TrendingDown : TrendingUp}
+                    accentClass={netFlow < 0 ? "text-red-300" : "text-cyan-300"}
+                    iconBgClass={netFlow < 0 ? "bg-red-400/12" : "bg-cyan-400/12"}
                   />
                 </div>
               </div>
-            </div>
-
-            <div className="relative min-h-[225px] overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-8 shadow-[0_16px_42px_rgba(0,0,0,0.48),0_0_24px_rgba(0,170,255,0.12)]">
-              <div className="mb-5 text-2xl font-extrabold tracking-wide text-mist">
-                Limits Delta Matrix
-              </div>
-              <LimitsDiffDisplayByCategory
-                differences={summary.expenseDifferenceByCategory}
-              />
             </div>
           </div>
 
@@ -459,7 +476,11 @@ const DashboardPage = () => {
                     <div className="text-xs uppercase tracking-wider text-mist/80">
                       {d.category || "Uncategorized"}
                     </div>
-                    <div className="text-2xl font-bold text-cyan-200">
+                    <div
+                      className={`text-2xl font-bold ${
+                        Number(d.difference || 0) > 0 ? "text-red-300" : "text-emerald-300"
+                      }`}
+                    >
                       {Math.round(d.difference || 0)}
                     </div>
                     <div className="text-xs text-mist/60">

@@ -8,6 +8,7 @@ import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage"; 
 import DashboardPage from "./pages/DashboardPage"; 
+import AnalysisPage from "./pages/AnalysisPage";
 import IncomePage from './pages/IncomePage';
 import ExpensePage from './pages/ExpensePage';
 import InvestmentPage from './pages/InvestmentPage';
@@ -23,6 +24,7 @@ const AppRoutes = () => {
   const location = useLocation();
   const isAppShellRoute = [
     "/dashboard",
+    "/analysis",
     "/income",
     "/expense",
     "/investment",
@@ -44,6 +46,14 @@ const AppRoutes = () => {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analysis"
+            element={
+              <ProtectedRoute>
+                <AnalysisPage />
               </ProtectedRoute>
             }
           />

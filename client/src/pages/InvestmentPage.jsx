@@ -1,10 +1,10 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
-import { useMotionValue, useSpring, useTransform } from "framer-motion";
 import axiosClient from "../api/axiosClient";
 
 import InvestmentList from "../components/investment/InvestmentList";
 import InvestmentForm from "../components/investment/InvestmentForm";
 import AppShell from "../components/layout/AppShell";
+import AnimatedNumber from "../components/dashboard/AnimatedNumber";
 
 function TechCard({ children, ...props }) {
   return (
@@ -15,16 +15,6 @@ function TechCard({ children, ...props }) {
       {children}
     </div>
   );
-}
-
-function AnimatedNumber({ value = 0, fmt = (v) => v.toLocaleString() }) {
-  const mv = useMotionValue(0);
-  const spring = useSpring(mv, { damping: 20, stiffness: 120 });
-  const rounded = useTransform(spring, (v) => Math.round(v));
-  useEffect(() => {
-    mv.set(Number(value || 0));
-  }, [value, mv]);
-  return <>{fmt(Number(rounded.get() || 0))}</>;
 }
 
 const InvestmentPage = () => {
@@ -49,6 +39,11 @@ const InvestmentPage = () => {
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE,
     totalPages: 0,
+  });
+  const [summary, setSummary] = useState({
+    totalAmount: 0,
+    totalCount: 0,
+    averageAmount: 0,
   });
 
   const fetchInvestments = async (targetPage = page) => {
@@ -86,12 +81,24 @@ const InvestmentPage = () => {
         return;
       }
 
+      const fallbackTotalAmount = rows.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const fallbackTotalCount = Number(nextPagination.total ?? rows.length);
+      const fallbackAverageAmount = fallbackTotalCount
+        ? fallbackTotalAmount / fallbackTotalCount
+        : 0;
+
       setInvestments(rows);
       setPagination(nextPagination);
+      setSummary({
+        totalAmount: Number(payload?.summary?.totalAmount ?? fallbackTotalAmount),
+        totalCount: Number(payload?.summary?.totalCount ?? fallbackTotalCount),
+        averageAmount: Number(payload?.summary?.averageAmount ?? fallbackAverageAmount),
+      });
     } catch (e) {
       console.error("Failed to load investments", e);
       setInvestments([]);
       setPagination({ total: 0, page: targetPage, pageSize, totalPages: 0 });
+      setSummary({ totalAmount: 0, totalCount: 0, averageAmount: 0 });
     } finally {
       setLoading(false);
     }
@@ -135,9 +142,9 @@ const InvestmentPage = () => {
     }
   };
 
-  const total = useMemo(() => investments.reduce((s, i) => s + Number(i.amount || 0), 0), [investments]);
-  const count = investments.length;
-  const avg = count ? Math.round(total / count) : 0;
+  const total = useMemo(() => Number(summary.totalAmount || 0), [summary.totalAmount]);
+  const count = useMemo(() => Number(summary.totalCount || 0), [summary.totalCount]);
+  const avg = useMemo(() => Math.round(Number(summary.averageAmount || 0)), [summary.averageAmount]);
 
   return (
     <AppShell>

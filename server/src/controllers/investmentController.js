@@ -281,6 +281,12 @@ const getAllInvestments = async (req, res) => {
         take,
       }),
     ]);
+    const aggregate = await prisma.investment.aggregate({
+      where,
+      _sum: { amount: true },
+      _avg: { amount: true },
+      _count: { _all: true },
+    });
 
     res.json(
       buildPaginatedResult({
@@ -288,6 +294,11 @@ const getAllInvestments = async (req, res) => {
         total,
         page,
         pageSize,
+        summary: {
+          totalAmount: Number(aggregate._sum.amount ?? 0),
+          totalCount: Number(aggregate._count?._all ?? total ?? 0),
+          averageAmount: Number(aggregate._avg.amount ?? 0),
+        },
       })
     );
   } catch (err) {

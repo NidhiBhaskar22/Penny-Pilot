@@ -18,16 +18,6 @@ function TechCard({ children, ...props }) {
   );
 }
 
-function AnimatedNumberLocal({ value = 0, fmt = (v) => v.toLocaleString() }) {
-  const mv = useMotionValue(0);
-  const spring = useSpring(mv, { damping: 20, stiffness: 120 });
-  const rounded = useTransform(spring, (v) => Math.round(v));
-  useEffect(() => {
-    mv.set(Number(value || 0));
-  }, [value, mv]);
-  return <>{fmt(Number(rounded.get() || 0))}</>;
-}
-
 const ExpensePage = () => {
   const DEFAULT_PAGE_SIZE = 10;
   const METHOD_OPTIONS = ["NET_BANKING", "UPI", "CASH", "DEBIT_CARD", "CREDIT_CARD"];
@@ -51,6 +41,11 @@ const ExpensePage = () => {
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE,
     totalPages: 0,
+  });
+  const [summary, setSummary] = useState({
+    totalAmount: 0,
+    totalCount: 0,
+    averageAmount: 0,
   });
 
   const fetchExpenses = async (targetPage = page) => {
@@ -88,12 +83,24 @@ const ExpensePage = () => {
         return;
       }
 
+      const fallbackTotalAmount = rows.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const fallbackTotalCount = Number(nextPagination.total ?? rows.length);
+      const fallbackAverageAmount = fallbackTotalCount
+        ? fallbackTotalAmount / fallbackTotalCount
+        : 0;
+
       setExpenses(rows);
       setPagination(nextPagination);
+      setSummary({
+        totalAmount: Number(payload?.summary?.totalAmount ?? fallbackTotalAmount),
+        totalCount: Number(payload?.summary?.totalCount ?? fallbackTotalCount),
+        averageAmount: Number(payload?.summary?.averageAmount ?? fallbackAverageAmount),
+      });
     } catch (error) {
       console.error("Failed to load expenses", error);
       setExpenses([]);
       setPagination({ total: 0, page: targetPage, pageSize, totalPages: 0 });
+      setSummary({ totalAmount: 0, totalCount: 0, averageAmount: 0 });
     } finally {
       setLoading(false);
     }
@@ -143,9 +150,9 @@ const ExpensePage = () => {
     }
   };
 
-  const total = useMemo(() => expenses.reduce((s, e) => s + Number(e.amount || 0), 0), [expenses]);
-  const count = expenses.length;
-  const avg = count ? Math.round(total / count) : 0;
+  const total = useMemo(() => Number(summary.totalAmount || 0), [summary.totalAmount]);
+  const count = useMemo(() => Number(summary.totalCount || 0), [summary.totalCount]);
+  const avg = useMemo(() => Math.round(Number(summary.averageAmount || 0)), [summary.averageAmount]);
 
   return (
     <AppShell>
@@ -172,7 +179,7 @@ const ExpensePage = () => {
           <TechCard>
             <div className="mb-1 text-xs font-bold uppercase tracking-widest text-sand">Entries</div>
             <div className="text-2xl font-bold text-mist">
-              <AnimatedNumberLocal value={count} />
+              <AnimatedNumber value={count} />
             </div>
             <div className="mt-2 text-sm text-mist/70">Total items</div>
           </TechCard>
@@ -180,7 +187,7 @@ const ExpensePage = () => {
           <TechCard>
             <div className="mb-1 text-xs font-bold uppercase tracking-widest text-sand">Average</div>
             <div className="text-2xl font-bold text-mist">
-              <AnimatedNumberLocal value={avg} />
+              <AnimatedNumber value={avg} />
             </div>
             <div className="mt-2 text-sm text-mist/70">Per entry</div>
           </TechCard>

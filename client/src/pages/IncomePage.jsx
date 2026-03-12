@@ -1,10 +1,10 @@
 ﻿import React, { useEffect, useState, useMemo } from "react";
-import { useMotionValue, useSpring, useTransform } from "framer-motion";
 import axiosClient from "../api/axiosClient";
 
 import IncomeList from "../components/income/IncomeList";
 import IncomeForm from "../components/income/IncomeForm";
 import AppShell from "../components/layout/AppShell";
+import AnimatedNumber from "../components/dashboard/AnimatedNumber";
 
 function TechCard({ children, ...props }) {
   return (
@@ -15,18 +15,6 @@ function TechCard({ children, ...props }) {
       {children}
     </div>
   );
-}
-
-function AnimatedNumber({ value = 0, fmt = (v) => v.toLocaleString() }) {
-  const mv = useMotionValue(0);
-  const spring = useSpring(mv, { damping: 20, stiffness: 120 });
-  const rounded = useTransform(spring, (v) => Math.round(v));
-
-  useEffect(() => {
-    mv.set(Number(value || 0));
-  }, [value, mv]);
-
-  return <>{fmt(Number(rounded.get() || 0))}</>;
 }
 
 const IncomePage = () => {
@@ -53,6 +41,11 @@ const IncomePage = () => {
     page: 1,
     pageSize: DEFAULT_PAGE_SIZE,
     totalPages: 0,
+  });
+  const [summary, setSummary] = useState({
+    totalAmount: 0,
+    totalCount: 0,
+    averageAmount: 0,
   });
 
   const fetchIncomes = async (targetPage = page) => {
@@ -91,12 +84,24 @@ const IncomePage = () => {
         return;
       }
 
+      const fallbackTotalAmount = rows.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+      const fallbackTotalCount = Number(nextPagination.total ?? rows.length);
+      const fallbackAverageAmount = fallbackTotalCount
+        ? fallbackTotalAmount / fallbackTotalCount
+        : 0;
+
       setIncomes(rows);
       setPagination(nextPagination);
+      setSummary({
+        totalAmount: Number(payload?.summary?.totalAmount ?? fallbackTotalAmount),
+        totalCount: Number(payload?.summary?.totalCount ?? fallbackTotalCount),
+        averageAmount: Number(payload?.summary?.averageAmount ?? fallbackAverageAmount),
+      });
     } catch (error) {
       console.error("Failed to load incomes", error);
       setIncomes([]);
       setPagination({ total: 0, page: targetPage, pageSize, totalPages: 0 });
+      setSummary({ totalAmount: 0, totalCount: 0, averageAmount: 0 });
     } finally {
       setLoading(false);
     }
@@ -146,9 +151,9 @@ const IncomePage = () => {
     fetchIncomes(page);
   };
 
-  const total = useMemo(() => incomes.reduce((s, i) => s + Number(i.amount || 0), 0), [incomes]);
-  const count = incomes.length;
-  const avg = count ? Math.round(total / count) : 0;
+  const total = useMemo(() => Number(summary.totalAmount || 0), [summary.totalAmount]);
+  const count = useMemo(() => Number(summary.totalCount || 0), [summary.totalCount]);
+  const avg = useMemo(() => Math.round(Number(summary.averageAmount || 0)), [summary.averageAmount]);
 
   return (
     <AppShell>

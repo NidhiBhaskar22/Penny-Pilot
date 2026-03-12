@@ -13,22 +13,19 @@ const LimitsDiffDisplayByCategory = ({ differences = [] }) => {
         {differences.length === 0 ? (
           <div className="text-mist/70">No category differences to display.</div>
         ) : (
-          differences.map(({ category, monthlyDiff, weeklyDiff, dailyDiff }) => (
+          differences.map(({ category, difference, spent, limit, categoryId }) => (
             <div
-              key={category || "Uncategorized"}
+              key={categoryId ?? category ?? "Uncategorized"}
               className="border-b border-[#4f87df]/30 pb-3"
             >
               <div className="mb-1 font-semibold text-mist/80">
                 {category || "Uncategorized"}
               </div>
-              <div className={(monthlyDiff ?? 0) >= 0 ? "text-cyan-200" : "text-rose-300"}>
-                Monthly Diff: {fmt(monthlyDiff)}
+              <div className="text-mist/70">
+                Spent: {fmt(spent)} | Limit: {fmt(limit)}
               </div>
-              <div className={(weeklyDiff ?? 0) >= 0 ? "text-cyan-200" : "text-rose-300"}>
-                Weekly Diff: {fmt(weeklyDiff)}
-              </div>
-              <div className={(dailyDiff ?? 0) >= 0 ? "text-cyan-200" : "text-rose-300"}>
-                Daily Diff: {fmt(dailyDiff)}
+              <div className={(difference ?? 0) > 0 ? "text-rose-300" : "text-cyan-200"}>
+                Delta: {fmt(difference)}
               </div>
             </div>
           ))

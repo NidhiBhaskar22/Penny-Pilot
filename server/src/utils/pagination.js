@@ -20,7 +20,7 @@ function parsePagination(query = {}, options = {}) {
   };
 }
 
-function buildPaginatedResult({ items, total, page, pageSize }) {
+function buildPaginatedResult({ items, total, page, pageSize, summary }) {
   const totalPages = total === 0 ? 0 : Math.ceil(total / pageSize);
   return {
     items,
@@ -28,6 +28,7 @@ function buildPaginatedResult({ items, total, page, pageSize }) {
     page,
     pageSize,
     totalPages,
+    ...(summary ? { summary } : {}),
   };
 }
 

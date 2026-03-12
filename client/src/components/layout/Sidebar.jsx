@@ -22,6 +22,7 @@ const IGrid = (p) => (
 const IArrowUp = (p) => <Icon path="M12 19V5m0 0l-7 7m7-7l7 7" {...p} />;
 const IArrowDown = (p) => <Icon path="M12 5v14m0 0l7-7m-7 7l-7-7" {...p} />;
 const IChart = (p) => <Icon path="M3 20h18M6 16V8m6 16V4m6 16v-6" {...p} />;
+const ITrend = (p) => <Icon path="M3 17l5-5 4 4 7-7M14 9h5v5" {...p} />;
 const IShield = (p) => (
   <Icon path="M12 2l7 4v6c0 5-3.5 9-7 10-3.5-1-7-5-7-10V6l7-4z" {...p} />
 );
@@ -64,6 +65,7 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   const items = [
     { to: "/dashboard", label: "Dashboard", icon: <IGrid className="h-5 w-5" /> },
+    { to: "/analysis", label: "Analysis", icon: <ITrend className="h-5 w-5" /> },
     { to: "/income", label: "Income", icon: <IArrowDown className="h-5 w-5" /> },
     { to: "/expense", label: "Expense", icon: <IArrowUp className="h-5 w-5" /> },
     { to: "/investment", label: "Investment", icon: <IChart className="h-5 w-5" /> },

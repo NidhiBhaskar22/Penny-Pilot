@@ -272,12 +272,23 @@ async function getAllExpenses(userId, query = {}) {
       take,
     }),
   ]);
+  const aggregate = await prisma.expense.aggregate({
+    where,
+    _sum: { amount: true },
+    _avg: { amount: true },
+    _count: { _all: true },
+  });
 
   return buildPaginatedResult({
     items,
     total,
     page,
     pageSize,
+    summary: {
+      totalAmount: Number(aggregate._sum.amount ?? 0),
+      totalCount: Number(aggregate._count?._all ?? total ?? 0),
+      averageAmount: Number(aggregate._avg.amount ?? 0),
+    },
   });
 }
 
