@@ -131,6 +131,406 @@ const daysDiffInclusive = (start, end) => {
   return Math.max(1, Math.floor((e - s) / 86400000) + 1);
 };
 
+const formatBucketDay = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+
+const formatBucketMonth = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+const getEffectiveIncomeDate = (row) => {
+  const creditedAt = new Date(row.creditedAt);
+  const derivedMonth = String(row.month || "").trim();
+  if (!derivedMonth) return creditedAt;
+
+  const rawMonth = formatBucketMonth(creditedAt);
+  if (rawMonth === derivedMonth) return creditedAt;
+
+  const [year, month] = derivedMonth.split("-").map(Number);
+  if (!year || !month) return creditedAt;
+  return new Date(year, month - 1, 1, 0, 0, 0, 0);
+};
+
+const getTrendBuckets = (timeframe, anchorDate) => {
+  if (timeframe === "weekly") {
+    const { start, end } = getRangeForTimeframe("weekly", formatBucketDay(anchorDate));
+    const buckets = [];
+    const cursor = new Date(start);
+    while (cursor <= end) {
+      buckets.push({
+        key: formatBucketDay(cursor),
+        label: cursor.toLocaleDateString("en-IN", { weekday: "short" }),
+        start: new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 0, 0, 0, 0),
+        end: new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 23, 59, 59, 999),
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return buckets;
+  }
+
+  if (timeframe === "yearly") {
+    return Array.from({ length: 12 }, (_, index) => {
+      const start = new Date(anchorDate.getFullYear(), index, 1, 0, 0, 0, 0);
+      const end = new Date(anchorDate.getFullYear(), index + 1, 0, 23, 59, 59, 999);
+      return {
+        key: formatBucketMonth(start),
+        label: start.toLocaleDateString("en-IN", { month: "short" }),
+        start,
+        end,
+      };
+    });
+  }
+
+  const monthBase = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
+  const monthEnd = new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 1, 0);
+  const buckets = [];
+  const cursor = new Date(monthBase);
+  while (cursor <= monthEnd) {
+    buckets.push({
+      key: formatBucketDay(cursor),
+      label: String(cursor.getDate()),
+      start: new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 0, 0, 0, 0),
+      end: new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), 23, 59, 59, 999),
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return buckets;
+};
+
+async function buildCumulativeTrendInsights(
+  userId,
+  timeframe,
+  anchorDate,
+  scenarioAccountIds,
+  methodType
+) {
+  const resolvedTimeframe = timeframe === "daily" ? "weekly" : timeframe;
+  const { start, end } = getRangeForTimeframe(
+    resolvedTimeframe,
+    resolvedTimeframe === "yearly"
+      ? String(anchorDate.getFullYear())
+      : resolvedTimeframe === "weekly"
+      ? formatBucketDay(anchorDate)
+      : formatBucketMonth(anchorDate)
+  );
+  const buckets = getTrendBuckets(resolvedTimeframe, anchorDate);
+  const incomeWhere =
+    resolvedTimeframe === "weekly"
+      ? {
+          creditedAt: { gte: start, lte: end },
+        }
+      : resolvedTimeframe === "yearly"
+      ? {
+          month: { startsWith: `${anchorDate.getFullYear()}-` },
+        }
+      : {
+          month: formatBucketMonth(anchorDate),
+        };
+
+  const [incomeRows, expenseRows, investmentRows, investmentTxRows] = await Promise.all([
+    prisma.income.findMany({
+      where: {
+        userId,
+        ...incomeWhere,
+        ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+        ...(methodType ? { paymentMethod: methodType } : {}),
+      },
+      select: { amount: true, creditedAt: true, month: true },
+      orderBy: { creditedAt: "asc" },
+    }),
+    prisma.expense.findMany({
+      where: {
+        userId,
+        spentAt: { gte: start, lte: end },
+        ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+        ...(methodType ? { paymentMethod: methodType } : {}),
+      },
+      select: { amount: true, spentAt: true },
+      orderBy: { spentAt: "asc" },
+    }),
+    prisma.investment.findMany({
+      where: {
+        userId,
+        investedAt: { gte: start, lte: end },
+        ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+        ...(methodType ? { paymentMethod: methodType } : {}),
+      },
+      select: { amount: true, investedAt: true },
+      orderBy: { investedAt: "asc" },
+    }),
+    prisma.investmentTransaction.findMany({
+      where: {
+        userId,
+        transactedAt: { gte: start, lte: end },
+        ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+        ...(methodType ? { paymentMethod: methodType } : {}),
+      },
+      select: { quantity: true, price: true, fees: true, transactedAt: true, transactionType: true },
+      orderBy: { transactedAt: "asc" },
+    }),
+  ]);
+
+  const hasTransactionInvestments = investmentTxRows.length > 0;
+  const incomeRowsForTrend = incomeRows
+    .map((row) => ({
+      ...row,
+      effectiveDate: getEffectiveIncomeDate(row),
+    }))
+    .filter((row) => row.effectiveDate >= start && row.effectiveDate <= end);
+
+  const bucketSeries = buckets.map((bucket) => {
+    const income = incomeRowsForTrend
+      .filter((row) => row.effectiveDate >= bucket.start && row.effectiveDate <= bucket.end)
+      .reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const expense = expenseRows
+      .filter((row) => row.spentAt >= bucket.start && row.spentAt <= bucket.end)
+      .reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const investment = hasTransactionInvestments
+      ? investmentTxRows
+          .filter((row) => row.transactedAt >= bucket.start && row.transactedAt <= bucket.end)
+          .reduce((sum, row) => {
+            const gross = Number(row.quantity || 0) * Number(row.price || 0);
+            const fees = Number(row.fees || 0);
+            const cashAmount =
+              row.transactionType === "SELL" ? -(gross - fees) : gross + fees;
+            return sum + cashAmount;
+          }, 0)
+      : investmentRows
+          .filter((row) => row.investedAt >= bucket.start && row.investedAt <= bucket.end)
+          .reduce((sum, row) => sum + Number(row.amount || 0), 0);
+
+    return {
+      key: bucket.key,
+      label: bucket.label,
+      income: Number(income.toFixed(2)),
+      expense: Number(expense.toFixed(2)),
+      investment: Number(investment.toFixed(2)),
+    };
+  });
+
+  let savingsCumulative = 0;
+
+  const points = bucketSeries.map((bucket) => {
+    savingsCumulative += bucket.income - bucket.expense - bucket.investment;
+    return {
+      label: bucket.label,
+      key: bucket.key,
+      income: bucket.income,
+      expense: bucket.expense,
+      investment: bucket.investment,
+      savings: Number(savingsCumulative.toFixed(2)),
+    };
+  });
+
+  return {
+    timeframe: resolvedTimeframe,
+    points,
+  };
+}
+
+async function buildSpendingAnalysis(
+  userId,
+  timeframe,
+  start,
+  end,
+  scenarioAccountIds,
+  methodType,
+  monthKey,
+  deviations
+) {
+  const where = {
+    userId,
+    ...buildPeriodWhere({
+      timeframe,
+      start,
+      end,
+      monthField: "month",
+      weekField: "week",
+      dateField: "spentAt",
+    }),
+    ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+    ...(methodType ? { paymentMethod: methodType } : {}),
+  };
+
+  const [expenseRows, groupedCategories, paymentMethodRows] = await Promise.all([
+    prisma.expense.findMany({
+      where,
+      include: {
+        category: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { amount: "desc" },
+      take: 5,
+    }),
+    prisma.expense.groupBy({
+      by: ["categoryId"],
+      where,
+      _sum: { amount: true },
+      _count: { _all: true },
+      orderBy: { _sum: { amount: "desc" } },
+    }),
+    prisma.expense.groupBy({
+      by: ["paymentMethod"],
+      where,
+      _sum: { amount: true },
+      _count: { _all: true },
+      orderBy: { _sum: { amount: "desc" } },
+    }),
+  ]);
+
+  const categoryIds = groupedCategories.map((row) => row.categoryId).filter(Boolean);
+  const categories = categoryIds.length
+    ? await prisma.category.findMany({
+        where: { id: { in: categoryIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+
+  const totalSpent = groupedCategories.reduce(
+    (sum, row) => sum + Number(row._sum.amount || 0),
+    0
+  );
+  const transactionCount = groupedCategories.reduce(
+    (sum, row) => sum + Number(row._count?._all || 0),
+    0
+  );
+  const topMethod = paymentMethodRows[0] || null;
+
+  const topCategories = groupedCategories.slice(0, 3).map((row) => {
+    const spent = Number(row._sum.amount || 0);
+    return {
+      categoryId: row.categoryId,
+      category: categoryMap.get(row.categoryId) || "Uncategorized",
+      spent,
+      sharePct: totalSpent > 0 ? Number(((spent / totalSpent) * 100).toFixed(1)) : 0,
+      purchases: Number(row._count?._all || 0),
+    };
+  });
+
+  const topPurchases = expenseRows.map((row) => ({
+    id: row.id,
+    amount: Number(row.amount || 0),
+    paidTo: row.paidTo || "Unknown merchant",
+    spentAt: row.spentAt,
+    category: row.category?.name || "Uncategorized",
+    month: row.month || monthKey,
+  }));
+
+  return {
+    topCategories,
+    habits: {
+      totalSpent: Number(totalSpent.toFixed(2)),
+      transactionCount,
+      averageTicket:
+        transactionCount > 0 ? Number((totalSpent / transactionCount).toFixed(2)) : 0,
+      topMethod: topMethod
+        ? {
+            method: topMethod.paymentMethod,
+            amount: Number(topMethod._sum.amount || 0),
+            sharePct:
+              totalSpent > 0
+                ? Number(((Number(topMethod._sum.amount || 0) / totalSpent) * 100).toFixed(1))
+                : 0,
+          }
+        : null,
+    },
+    limitViolations: deviations
+      .filter((item) => Number(item.deviation || 0) > 0)
+      .sort((a, b) => b.deviation - a.deviation)
+      .slice(0, 3)
+      .map((item) => ({
+        categoryId: item.categoryId,
+        category: item.category,
+        spent: Number(item.spent || 0),
+        limit: Number(item.limit || 0),
+        overBy: Number(item.deviation || 0),
+      })),
+    topPurchases,
+  };
+}
+
+async function buildInvestmentAnalysis(userId, scenarioAccountIds, methodType) {
+  const investments = await prisma.investment.findMany({
+    where: {
+      userId,
+      ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+      ...(methodType ? { paymentMethod: methodType } : {}),
+    },
+    select: {
+      instrument: true,
+      amount: true,
+      roi: true,
+      investedAt: true,
+      type: true,
+    },
+  });
+
+  const byInstrument = new Map();
+  investments.forEach((item) => {
+    const key = item.instrument || "Unknown";
+    const current = byInstrument.get(key) || {
+      instrument: key,
+      investedAmount: 0,
+      weightedRoiValue: 0,
+      entries: 0,
+      latestInvestedAt: item.investedAt,
+      type: item.type || null,
+    };
+    const amount = Number(item.amount || 0);
+    const roi = Number(item.roi || 0);
+    current.investedAmount += amount;
+    current.weightedRoiValue += amount * roi;
+    current.entries += 1;
+    if (!current.latestInvestedAt || item.investedAt > current.latestInvestedAt) {
+      current.latestInvestedAt = item.investedAt;
+    }
+    byInstrument.set(key, current);
+  });
+
+  const assets = Array.from(byInstrument.values())
+    .map((item) => {
+      const roiPct =
+        item.investedAmount > 0 ? item.weightedRoiValue / item.investedAmount : 0;
+      const profitLoss = item.investedAmount * (roiPct / 100);
+      const currentValue = item.investedAmount + profitLoss;
+      return {
+        instrument: item.instrument,
+        type: item.type,
+        investedAmount: Number(item.investedAmount.toFixed(2)),
+        roiPct: Number(roiPct.toFixed(2)),
+        profitLoss: Number(profitLoss.toFixed(2)),
+        currentValue: Number(currentValue.toFixed(2)),
+        latestInvestedAt: item.latestInvestedAt,
+      };
+    })
+    .sort((a, b) => b.currentValue - a.currentValue);
+
+  const investedAmount = assets.reduce((sum, item) => sum + item.investedAmount, 0);
+  const currentValue = assets.reduce((sum, item) => sum + item.currentValue, 0);
+  const profitLoss = currentValue - investedAmount;
+  const roiPct = investedAmount > 0 ? (profitLoss / investedAmount) * 100 : 0;
+
+  return {
+    portfolio: {
+      investedAmount: Number(investedAmount.toFixed(2)),
+      currentValue: Number(currentValue.toFixed(2)),
+      profitLoss: Number(profitLoss.toFixed(2)),
+      roiPct: Number(roiPct.toFixed(2)),
+      profitableAssets: assets.filter((item) => item.profitLoss > 0).length,
+      losingAssets: assets.filter((item) => item.profitLoss < 0).length,
+    },
+    bestPerformers: [...assets]
+      .sort((a, b) => b.roiPct - a.roiPct)
+      .slice(0, 3),
+    worstPerformers: [...assets]
+      .sort((a, b) => a.roiPct - b.roiPct)
+      .slice(0, 3),
+  };
+}
+
 async function buildSpendAnomalyInsights(
   userId,
   currentMonthKey,
@@ -834,6 +1234,38 @@ const getAdvancedDashboard = async (req, res) => {
       scenarioAccountIds,
       methodType
     );
+    const spendingAnalysis = await buildSpendingAnalysis(
+      userId,
+      timeframe,
+      start,
+      end,
+      scenarioAccountIds,
+      methodType,
+      monthKey,
+      deviations
+    );
+    const investmentAnalysis = await buildInvestmentAnalysis(
+      userId,
+      scenarioAccountIds,
+      methodType
+    );
+    const cumulativeTrend = await buildCumulativeTrendInsights(
+      userId,
+      timeframe,
+      insightsAnchor,
+      scenarioAccountIds,
+      methodType
+    );
+    const netWorth = {
+      savings: Number(balances.current || 0),
+      investments: Number(investmentAnalysis.portfolio.currentValue || 0),
+      total: Number(
+        (
+          Number(balances.current || 0) +
+          Number(investmentAnalysis.portfolio.currentValue || 0)
+        ).toFixed(2)
+      ),
+    };
 
     res.json({
       label,
@@ -854,6 +1286,12 @@ const getAdvancedDashboard = async (req, res) => {
       },
       accountFilter: scenarioAccountIds ? { rootAccountId: accountId, accountIds: scenarioAccountIds } : null,
       methodFilter: methodType || null,
+      analysis: {
+        spending: spendingAnalysis,
+        investment: investmentAnalysis,
+        netWorth,
+        cumulativeTrend,
+      },
       insights: {
         spendAnomalies,
         incomeStability,

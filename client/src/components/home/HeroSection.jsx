@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useAuth } from "../../context/AuthContext";
 import { fadeUp } from "./content";
 
 const MotionSection = motion.section;
@@ -8,6 +9,8 @@ const heroWords = ["Track", "every", "rupee.", "Plan", "every", "move."];
 
 export default function HeroSection() {
   const [glowPosition, setGlowPosition] = useState({ x: 55, y: 42 });
+  const { isAuthed } = useAuth();
+  const primaryCtaTarget = isAuthed ? "/dashboard" : "/register";
 
   return (
     <MotionSection
@@ -73,7 +76,7 @@ export default function HeroSection() {
           custom={3}
         >
           <RouterLink
-            to="/register"
+            to={primaryCtaTarget}
             className="rounded-xl bg-teal px-7 py-3 text-sm font-bold text-mist shadow-[0_16px_34px_rgba(17,100,102,0.35)] transition-transform hover:scale-[1.02]"
           >
             Get Started

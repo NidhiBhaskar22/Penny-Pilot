@@ -15,6 +15,8 @@ const loanRoute = require('./routes/loanRoute');
 const emiRoute = require('./routes/emiRoute')
 const accountRoute = require('./routes/accountRoute');
 const categoryRoute = require('./routes/categoryRoute');
+const instrumentRoute = require('./routes/instrumentRoute');
+const analysisRoute = require('./routes/analysisRoute');
 const errorHandler = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -37,6 +39,8 @@ app.use('/api/loans', loanRoute);
 app.use('/api/emis', emiRoute);
 app.use('/api/accounts', accountRoute);
 app.use('/api/categories', categoryRoute);
+app.use('/api/instruments', instrumentRoute);
+app.use('/api/analysis', analysisRoute);
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

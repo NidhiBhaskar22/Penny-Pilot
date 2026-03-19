@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="pp-bg" x1="10" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10234f"/>
+      <stop offset="1" stop-color="#071127"/>
+    </linearGradient>
+    <linearGradient id="pp-accent" x1="20" y1="18" x2="45" y2="45" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4CC9F0"/>
+      <stop offset="1" stop-color="#7EE7D6"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="56" height="56" rx="18" fill="url(#pp-bg)"/>
+  <path d="M19 44V24.5C19 20.91 21.91 18 25.5 18H35C40.52 18 45 22.48 45 28C45 33.52 40.52 38 35 38H24.5" stroke="url(#pp-accent)" stroke-width="4.75" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M21 46L31.5 35.5L38.5 42.5L46 28" stroke="#FFB38A" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="46" cy="28" r="2.8" fill="#FFB38A"/>
+</svg>
