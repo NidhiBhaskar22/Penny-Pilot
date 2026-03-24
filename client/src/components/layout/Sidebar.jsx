@@ -29,6 +29,8 @@ const IShield = (p) => (
 const IBank = (p) => (
   <Icon path="M3 10h18M5 10v8m4-8v8m6-8v8m4-8v8M2 18h20M12 3l9 5H3l9-5z" {...p} />
 );
+const ILogin = (p) => <Icon path="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3" {...p} />;
+const ILogout = (p) => <Icon path="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" {...p} />;
 
 const NavItem = ({ to, icon, label, active, collapsed }) => {
   const content = (
@@ -140,7 +142,11 @@ export default function Sidebar({ collapsed, onToggle }) {
         </div>
 
         <div className="relative px-2 pb-3">
-          <div className="flex items-center gap-3 rounded-xl border border-[#3a63b5]/35 bg-[rgba(7,16,58,0.78)] px-3 py-2.5">
+          <div
+            className={`rounded-xl border border-[#3a63b5]/35 bg-[rgba(7,16,58,0.78)] ${
+              collapsed ? "flex justify-center px-2 py-3" : "flex items-center gap-3 px-3 py-2.5"
+            }`}
+          >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#22c0ff] text-[#03102e]">
               {(user?.name || "G")[0].toUpperCase()}
             </div>
@@ -152,22 +158,42 @@ export default function Sidebar({ collapsed, onToggle }) {
             )}
           </div>
 
-          <div className="mt-2 flex gap-2">
+          <div className={`mt-2 ${collapsed ? "flex justify-center" : "flex gap-2"}`}>
             {isAuthed ? (
-              <button
-                onClick={handleLogout}
-                className="w-full rounded-lg bg-red-600/80 px-3 py-2 text-sm font-semibold text-white"
-              >
-                Logout
-              </button>
+              collapsed ? (
+                <button
+                  onClick={handleLogout}
+                  aria-label="Logout"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-red-600/80 text-white"
+                >
+                  <ILogout className="h-5 w-5" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleLogout}
+                  className="w-full rounded-lg bg-red-600/80 px-3 py-2 text-sm font-semibold text-white"
+                >
+                  Logout
+                </button>
+              )
             ) : (
               <>
-                <RouterLink
-                  to="/login"
-                  className="w-full rounded-lg bg-[#22c0ff] px-3 py-2 text-center text-sm font-semibold text-[#03102e]"
-                >
-                  Login
-                </RouterLink>
+                {collapsed ? (
+                  <RouterLink
+                    to="/login"
+                    aria-label="Login"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[#22c0ff] text-[#03102e]"
+                  >
+                    <ILogin className="h-5 w-5" />
+                  </RouterLink>
+                ) : (
+                  <RouterLink
+                    to="/login"
+                    className="w-full rounded-lg bg-[#22c0ff] px-3 py-2 text-center text-sm font-semibold text-[#03102e]"
+                  >
+                    Login
+                  </RouterLink>
+                )}
                 {!collapsed && (
                   <RouterLink
                     to="/register"

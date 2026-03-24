@@ -54,7 +54,7 @@ const getRangeForTimeframe = (timeframe, anchor) => {
 
   if (timeframe === "weekly") {
     const day = start.getDay();
-    const diff = (day + 6) % 7; // Monday start
+    const diff = (day + 6) % 7; 
     start.setDate(start.getDate() - diff);
     start.setHours(0, 0, 0, 0);
     end.setDate(start.getDate() + 6);

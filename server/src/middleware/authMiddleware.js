@@ -22,7 +22,7 @@ async function authMiddleware(req, res, next) {
       return res.status(401).json({ message: "Invalid session. Please login again." });
     }
 
-    req.user = { ...user, userId }; // normalized user id
+    req.user = { ...user, userId }; 
     next();
   } catch (err) {
     res.status(401).json({ message: "Invalid or expired token" });

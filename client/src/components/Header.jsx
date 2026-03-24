@@ -1,12 +1,15 @@
-﻿import React, { useContext } from "react";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import React, { useContext, useState } from "react";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { Menu } from "@headlessui/react";
 import { AuthContext } from "../context/AuthContext";
+import ContactUsModal from "./ContactUsModal";
 
 const Header = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
   const isAuthed = !!user;
+  const [contactOpen, setContactOpen] = useState(false);
 
   const initials =
     user?.name
@@ -25,76 +28,85 @@ const Header = () => {
   };
 
   return (
-    <header className="absolute top-0 z-20 w-full border-b border-[#3a63b5]/35 bg-[rgba(3,8,38,0.72)] backdrop-blur-md">
-      <div className="relative mx-auto flex max-w-[1200px] items-center gap-4 px-6 py-4">
-        <RouterLink to="/" className="flex items-center gap-2">
-          <span className="text-lg font-semibold tracking-wide text-white [@media(prefers-color-scheme:light)]:text-black">
-            PennyPilot
-          </span>
-        </RouterLink>
+    <>
+      <header className="absolute top-0 z-20 w-full border-b border-[#3a63b5]/35 bg-[rgba(3,8,38,0.72)] backdrop-blur-md">
+        <div className="relative mx-auto flex max-w-[1200px] items-center gap-4 px-6 py-4">
+          <RouterLink to="/" className="flex items-center gap-2">
+            <span className="text-lg font-semibold tracking-wide text-white [@media(prefers-color-scheme:light)]:text-black">
+              PennyPilot
+            </span>
+          </RouterLink>
 
-        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center justify-center gap-6 px-4 py-2 text-sm font-semibold tracking-wide md:flex">
-      <RouterLink to="/" className="text-mist/70">
-        Home
-      </RouterLink>
-      <RouterLink to="/about" className="text-mist/70">
-        About
-      </RouterLink>
-      <RouterLink to="/dashboard" className="text-mist/70">
-        Dashboard
-      </RouterLink>
-    </nav>
+          <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center justify-center gap-6 px-4 py-2 text-sm font-semibold tracking-wide md:flex">
+            <RouterLink to="/" className="text-mist/70 transition hover:text-mist">
+              Home
+            </RouterLink>
+            <button
+              type="button"
+              onClick={() => setContactOpen(true)}
+              className="text-mist/70 transition hover:text-mist"
+            >
+              Contact
+            </button>
+            <RouterLink to="/dashboard" className="text-mist/70 transition hover:text-mist">
+              Dashboard
+            </RouterLink>
+          </nav>
 
-        <Menu as="div" className="relative ml-auto">
-          <Menu.Button className="flex h-11 w-11 items-center justify-center rounded-full border border-[#4f87df]/45 bg-[rgba(14,31,94,0.75)] text-mist">
-            <span className="text-sm font-semibold">{initials}</span>
-          </Menu.Button>
-          <Menu.Items className="absolute right-0 mt-2 w-56 rounded-xl border border-[#3a63b5]/35 bg-[rgba(3,8,38,0.95)] p-2 text-sm text-mist shadow-lg">
-            <div className="px-3 py-2">
-              <div className="text-sm font-semibold">{user?.name || "Guest"}</div>
-              <div className="text-xs text-mist/70">{user?.email || "-"}</div>
-            </div>
-            <div className="my-2 border-t border-white/10" />
-            <Menu.Item>
-              {({ active }) => (
-                <RouterLink
-                  to="/contact"
-                  className={`block rounded-lg px-3 py-2 ${active ? "bg-white/10" : ""}`}
-                >
-                  Contact Us
-                </RouterLink>
-              )}
-            </Menu.Item>
-            <div className="my-2 border-t border-white/10" />
-            <Menu.Item>
-              {({ active }) =>
-                isAuthed ? (
+          <Menu as="div" className="relative ml-auto">
+            <Menu.Button className="flex h-11 w-11 items-center justify-center rounded-full border border-[#4f87df]/45 bg-[rgba(14,31,94,0.75)] text-mist">
+              <span className="text-sm font-semibold">{initials}</span>
+            </Menu.Button>
+            <Menu.Items className="absolute right-0 mt-2 w-56 rounded-xl border border-[#3a63b5]/35 bg-[rgba(3,8,38,0.95)] p-2 text-sm text-mist shadow-lg">
+              <div className="px-3 py-2">
+                <div className="text-sm font-semibold">{user?.name || "Guest"}</div>
+                <div className="text-xs text-mist/70">{user?.email || "-"}</div>
+                <div className="mt-1 truncate text-[11px] text-mist/45">{location.pathname}</div>
+              </div>
+              <div className="my-2 border-t border-white/10" />
+              <Menu.Item>
+                {({ active }) => (
                   <button
-                    onClick={handleLogout}
-                    className={`block w-full rounded-lg px-3 py-2 text-left text-red-300 ${
-                      active ? "bg-white/10" : ""
-                    }`}
+                    type="button"
+                    onClick={() => setContactOpen(true)}
+                    className={`block w-full rounded-lg px-3 py-2 text-left ${active ? "bg-white/10" : ""}`}
                   >
-                    Log out
+                    Contact Us
                   </button>
-                ) : (
-                  <RouterLink
-                    to="/login"
-                    className={`block w-full rounded-lg px-3 py-2 text-left text-cyan-300 ${
-                      active ? "bg-white/10" : ""
-                    }`}
-                  >
-                    Login
-                  </RouterLink>
-                )
-              }
-            </Menu.Item>
-          </Menu.Items>
-        </Menu>
-      </div>
-    </header>
+                )}
+              </Menu.Item>
+              <div className="my-2 border-t border-white/10" />
+              <Menu.Item>
+                {({ active }) =>
+                  isAuthed ? (
+                    <button
+                      onClick={handleLogout}
+                      className={`block w-full rounded-lg px-3 py-2 text-left text-red-300 ${
+                        active ? "bg-white/10" : ""
+                      }`}
+                    >
+                      Log out
+                    </button>
+                  ) : (
+                    <RouterLink
+                      to="/login"
+                      className={`block w-full rounded-lg px-3 py-2 text-left text-cyan-300 ${
+                        active ? "bg-white/10" : ""
+                      }`}
+                    >
+                      Login
+                    </RouterLink>
+                  )
+                }
+              </Menu.Item>
+            </Menu.Items>
+          </Menu>
+        </div>
+      </header>
+
+      <ContactUsModal open={contactOpen} onClose={() => setContactOpen(false)} />
+    </>
   );
 };
 
 export default Header;
-

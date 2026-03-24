@@ -649,7 +649,7 @@ const TrendSection = React.memo(function TrendSection({ trend, visibleSeries, on
               key={key}
               type="button"
               onClick={() => onToggleSeries(key)}
-              className={`rounded-full border px-4 py-2 text-sm transition ${
+              className={`min-h-10 rounded-full border px-3 py-2 text-sm transition sm:px-4 ${
                 active
                   ? "border-transparent text-slate-950"
                   : "border-white/10 bg-white/[0.03] text-slate-300"
@@ -662,16 +662,25 @@ const TrendSection = React.memo(function TrendSection({ trend, visibleSeries, on
         })}
       </div>
 
-      <div className="mt-6 h-[360px] rounded-[24px] border border-white/8 bg-[#070b18]/80 p-3">
+      <div className="mt-6 h-[280px] rounded-[24px] border border-white/8 bg-[#070b18]/80 p-2 sm:h-[320px] sm:p-3 lg:h-[360px]">
         {trend.points?.length ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={trend.points} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+            <LineChart data={trend.points} margin={{ top: 12, right: 8, left: 6, bottom: 0 }}>
               <CartesianGrid stroke="rgba(148,163,184,0.11)" vertical={false} />
-              <XAxis dataKey="label" stroke="#94a3b8" tickLine={false} axisLine={false} />
+              <XAxis
+                dataKey="label"
+                stroke="#94a3b8"
+                tickLine={false}
+                axisLine={false}
+                minTickGap={24}
+                tick={{ fontSize: 12 }}
+              />
               <YAxis
                 stroke="#94a3b8"
                 tickLine={false}
                 axisLine={false}
+                width={52}
+                tick={{ fontSize: 12 }}
                 tickFormatter={formatCompactNumber}
               />
               <Tooltip contentStyle={chartTooltipStyle} formatter={(value) => formatCurrency(value)} />
@@ -703,16 +712,25 @@ const TrendSection = React.memo(function TrendSection({ trend, visibleSeries, on
         />
       </div>
 
-      <div className="mt-6 h-[320px] rounded-[24px] border border-white/8 bg-[#070b18]/80 p-3">
+      <div className="mt-6 h-[260px] rounded-[24px] border border-white/8 bg-[#070b18]/80 p-2 sm:h-[300px] sm:p-3 lg:h-[320px]">
         {trend.points?.length ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={trend.points} margin={{ top: 12, right: 12, left: 0, bottom: 0 }}>
+            <LineChart data={trend.points} margin={{ top: 12, right: 8, left: 6, bottom: 0 }}>
               <CartesianGrid stroke="rgba(148,163,184,0.11)" vertical={false} />
-              <XAxis dataKey="label" stroke="#94a3b8" tickLine={false} axisLine={false} />
+              <XAxis
+                dataKey="label"
+                stroke="#94a3b8"
+                tickLine={false}
+                axisLine={false}
+                minTickGap={24}
+                tick={{ fontSize: 12 }}
+              />
               <YAxis
                 stroke="#94a3b8"
                 tickLine={false}
                 axisLine={false}
+                width={52}
+                tick={{ fontSize: 12 }}
                 tickFormatter={formatCompactNumber}
               />
               <Tooltip contentStyle={chartTooltipStyle} formatter={(value) => formatCurrency(value)} />
@@ -1040,73 +1058,98 @@ export default function AnalysisPage() {
     <AppShell>
       <div className="relative mx-auto mt-8 max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
         <SectionCard className="mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              {PERIOD_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() =>
-                    setDraftFilters((prev) => ({ ...prev, timeframe: option.value }))
-                  }
-                  className={`h-9 rounded-full px-4 text-sm transition ${
-                    draftFilters.timeframe === option.value
-                      ? "bg-sky-300 text-slate-950"
-                      : "border border-white/10 bg-white/[0.04] text-slate-300 hover:border-sky-200/40"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-
-              <div className="min-w-[220px] rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
-                <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
-                  Selected Period
-                </div>
-                <div className="mt-1 text-sm font-medium text-white">{selectedPeriodLabel}</div>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="flex min-w-0 flex-1 flex-col gap-4">
+              <div className="flex flex-wrap gap-2">
+                {PERIOD_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() =>
+                      setDraftFilters((prev) => ({ ...prev, timeframe: option.value }))
+                    }
+                    className={`h-10 min-w-[112px] rounded-full px-4 text-sm transition sm:min-w-0 ${
+                      draftFilters.timeframe === option.value
+                        ? "bg-sky-300 text-slate-950"
+                        : "border border-white/10 bg-white/[0.04] text-slate-300 hover:border-sky-200/40"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
 
-              {draftFilters.timeframe === "monthly" ? (
-                <div className="flex flex-wrap gap-2">
-                  <label className="flex min-w-[180px] flex-col gap-1">
-                    <span className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
-                      Choose Month
-                    </span>
-                    <select
-                      value={draftMonthNumber || MONTH_OPTIONS[0].value}
-                      onChange={(e) =>
-                        setDraftFilters((prev) => ({
-                          ...prev,
-                          anchorMonth: `${draftMonthYear || currentYear}-${e.target.value}`,
-                        }))
-                      }
-                      className={`${filterControlClassName} min-w-[180px]`}
-                    >
-                      {MONTH_OPTIONS.map((month) => (
-                        <option
-                          key={month.value}
-                          value={month.value}
-                          className="bg-[#0b1127] text-slate-200"
-                        >
-                          {month.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,260px)_repeat(3,minmax(0,1fr))]">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 sm:col-span-2 xl:col-span-1">
+                  <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+                    Selected Period
+                  </div>
+                  <div className="mt-1 text-sm font-medium text-white">{selectedPeriodLabel}</div>
+                </div>
 
-                  <label className="flex min-w-[140px] flex-col gap-1">
+                {draftFilters.timeframe === "monthly" ? (
+                  <>
+                    <label className="flex min-w-0 flex-col gap-1">
+                      <span className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                        Choose Month
+                      </span>
+                      <select
+                        value={draftMonthNumber || MONTH_OPTIONS[0].value}
+                        onChange={(e) =>
+                          setDraftFilters((prev) => ({
+                            ...prev,
+                            anchorMonth: `${draftMonthYear || currentYear}-${e.target.value}`,
+                          }))
+                        }
+                        className={`${filterControlClassName} w-full min-w-0`}
+                      >
+                        {MONTH_OPTIONS.map((month) => (
+                          <option
+                            key={month.value}
+                            value={month.value}
+                            className="bg-[#0b1127] text-slate-200"
+                          >
+                            {month.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="flex min-w-0 flex-col gap-1">
+                      <span className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                        Choose Year
+                      </span>
+                      <select
+                        value={draftMonthYear || String(currentYear)}
+                        onChange={(e) =>
+                          setDraftFilters((prev) => ({
+                            ...prev,
+                            anchorMonth: `${e.target.value}-${draftMonthNumber || MONTH_OPTIONS[0].value}`,
+                          }))
+                        }
+                        className={`${filterControlClassName} w-full min-w-0`}
+                      >
+                        {yearOptions.map((year) => (
+                          <option key={year} value={year} className="bg-[#0b1127] text-slate-200">
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </>
+                ) : null}
+
+                {draftFilters.timeframe === "yearly" ? (
+                  <label className="flex min-w-0 flex-col gap-1">
                     <span className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
                       Choose Year
                     </span>
                     <select
-                      value={draftMonthYear || String(currentYear)}
+                      value={draftFilters.anchorYear}
                       onChange={(e) =>
-                        setDraftFilters((prev) => ({
-                          ...prev,
-                          anchorMonth: `${e.target.value}-${draftMonthNumber || MONTH_OPTIONS[0].value}`,
-                        }))
+                        setDraftFilters((prev) => ({ ...prev, anchorYear: e.target.value }))
                       }
-                      className={`${filterControlClassName} min-w-[140px]`}
+                      className={`${filterControlClassName} w-full min-w-0`}
                     >
                       {yearOptions.map((year) => (
                         <option key={year} value={year} className="bg-[#0b1127] text-slate-200">
@@ -1115,60 +1158,44 @@ export default function AnalysisPage() {
                       ))}
                     </select>
                   </label>
-                </div>
-              ) : null}
+                ) : null}
 
-              {draftFilters.timeframe === "yearly" ? (
-                <label className="flex min-w-[160px] flex-col gap-1">
-                  <span className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
-                    Choose Year
-                  </span>
-                  <select
-                    value={draftFilters.anchorYear}
-                    onChange={(e) =>
-                      setDraftFilters((prev) => ({ ...prev, anchorYear: e.target.value }))
-                    }
-                    className={`${filterControlClassName} min-w-[160px]`}
-                  >
-                    {yearOptions.map((year) => (
-                      <option key={year} value={year} className="bg-[#0b1127] text-slate-200">
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
-
-              {accounts.length > 1 ? (
-                <select
-                  value={draftFilters.accountId}
-                  onChange={(e) =>
-                    setDraftFilters((prev) => ({ ...prev, accountId: e.target.value }))
-                  }
-                  className={`${filterControlClassName} min-w-[150px]`}
-                >
-                  <option value="" className="bg-[#0b1127] text-slate-200">All Accounts</option>
-                  {accounts.map((account) => (
-                    <option key={account.id} value={account.id} className="bg-[#0b1127] text-slate-200">
-                      {account.name}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
+                {accounts.length > 1 ? (
+                  <label className="flex min-w-0 flex-col gap-1 sm:col-span-2 xl:col-span-1">
+                    <span className="text-[11px] uppercase tracking-[0.22em] text-slate-400">
+                      Account
+                    </span>
+                    <select
+                      value={draftFilters.accountId}
+                      onChange={(e) =>
+                        setDraftFilters((prev) => ({ ...prev, accountId: e.target.value }))
+                      }
+                      className={`${filterControlClassName} w-full min-w-0`}
+                    >
+                      <option value="" className="bg-[#0b1127] text-slate-200">All Accounts</option>
+                      {accounts.map((account) => (
+                        <option key={account.id} value={account.id} className="bg-[#0b1127] text-slate-200">
+                          {account.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+              </div>
             </div>
 
-            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <div className="grid w-full grid-cols-3 gap-2 sm:w-auto sm:grid-cols-3 lg:min-w-[260px]">
               <button
                 type="button"
                 onClick={handleCurrentAnchor}
-                className="h-9 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-slate-300 transition hover:border-sky-200/40"
+                className="h-10 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-slate-300 transition hover:border-sky-200/40"
               >
                 Today
               </button>
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="h-9 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-slate-300 transition hover:border-sky-200/40"
+                className="h-10 rounded-xl border border-white/10 bg-white/[0.03] px-3 text-sm text-slate-300 transition hover:border-sky-200/40"
               >
                 Reset
               </button>
@@ -1176,7 +1203,7 @@ export default function AnalysisPage() {
                 type="button"
                 onClick={handleApplyFilters}
                 disabled={!hasPendingChanges}
-                className="h-9 rounded-xl bg-sky-300 px-4 text-sm font-semibold text-slate-950 transition disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-10 rounded-xl bg-sky-300 px-4 text-sm font-semibold text-slate-950 transition disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Apply
               </button>

@@ -43,7 +43,7 @@ function TechBg() {
 }
 
 export default function AppShell({ children }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const sidebarW = collapsed ? 76 : 260;
 
   return (

@@ -1,15 +1,10 @@
 const LLM_PROVIDER = (process.env.LLM_PROVIDER || "groq").toLowerCase();
 
-const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 
 const GROQ_BASE_URL = process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1";
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.1-8b-instant";
 const GROQ_API_KEY = process.env.GROQ_API_KEY || "";
 
-const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "qwen2.5:7b";
 
 function buildPrompt(summary) {
   const payload = {
@@ -90,70 +85,70 @@ function safeParseInsight(content) {
   }
 }
 
-async function generateWithOllama(summary) {
-  const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      prompt: buildPrompt(summary),
-      stream: false,
-      format: "json",
-    }),
-  });
+// async function generateWithOllama(summary) {
+//   const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
+//     method: "POST",
+//     headers: {
+//       "Content-Type": "application/json",
+//     },
+//     body: JSON.stringify({
+//       model: OLLAMA_MODEL,
+//       prompt: buildPrompt(summary),
+//       stream: false,
+//       format: "json",
+//     }),
+//   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    const error = new Error(`Ollama request failed: ${response.status} ${text}`);
-    error.statusCode = response.status;
-    throw error;
-  }
+//   if (!response.ok) {
+//     const text = await response.text();
+//     const error = new Error(`Ollama request failed: ${response.status} ${text}`);
+//     error.statusCode = response.status;
+//     throw error;
+//   }
 
-  const data = await response.json();
-  return safeParseInsight(data?.response || "");
-}
+//   const data = await response.json();
+//   return safeParseInsight(data?.response || "");
+// }
 
-async function generateWithOpenAI(summary) {
-  if (!OPENAI_API_KEY) {
-    const error = new Error("OPENAI_API_KEY is not configured");
-    error.statusCode = 500;
-    throw error;
-  }
+// async function generateWithOpenAI(summary) {
+//   if (!OPENAI_API_KEY) {
+//     const error = new Error("OPENAI_API_KEY is not configured");
+//     error.statusCode = 500;
+//     throw error;
+//   }
 
-  const response = await fetch(`${OPENAI_BASE_URL}/responses`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      input: buildPrompt(summary),
-      text: {
-        format: {
-          type: "json_object",
-        },
-      },
-    }),
-  });
+//   const response = await fetch(`${OPENAI_BASE_URL}/responses`, {
+//     method: "POST",
+//     headers: {
+//       "Content-Type": "application/json",
+//       Authorization: `Bearer ${OPENAI_API_KEY}`,
+//     },
+//     body: JSON.stringify({
+//       model: OPENAI_MODEL,
+//       input: buildPrompt(summary),
+//       text: {
+//         format: {
+//           type: "json_object",
+//         },
+//       },
+//     }),
+//   });
 
-  if (!response.ok) {
-    const text = await response.text();
-    const error = new Error(`OpenAI request failed: ${response.status} ${text}`);
-    error.statusCode = response.status;
-    throw error;
-  }
+//   if (!response.ok) {
+//     const text = await response.text();
+//     const error = new Error(`OpenAI request failed: ${response.status} ${text}`);
+//     error.statusCode = response.status;
+//     throw error;
+//   }
 
-  const data = await response.json();
-  const content =
-    data?.output_text ||
-    data?.output?.[0]?.content?.find((item) => item.type === "output_text")?.text ||
-    "";
+//   const data = await response.json();
+//   const content =
+//     data?.output_text ||
+//     data?.output?.[0]?.content?.find((item) => item.type === "output_text")?.text ||
+//     "";
 
-  return safeParseInsight(content);
-}
+//   return safeParseInsight(content);
+// }
 
 async function generateWithGroq(summary) {
   if (!GROQ_API_KEY) {
@@ -201,9 +196,9 @@ async function generateWithGroq(summary) {
 }
 
 async function generateSummary(summary) {
-  if (LLM_PROVIDER === "ollama") {
-    return generateWithOllama(summary);
-  }
+  // if (LLM_PROVIDER === "ollama") {
+  //   return generateWithOllama(summary);
+  // }
   if (LLM_PROVIDER === "groq") {
     return generateWithGroq(summary);
   }

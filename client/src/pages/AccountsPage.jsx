@@ -10,6 +10,11 @@ const METHOD_OPTIONS = [
   { value: "CASH", label: "Cash" },
 ];
 
+const formatMethods = (methods = []) =>
+  methods.length ? methods.map((m) => m.replaceAll("_", " ")).join(", ") : "No methods enabled";
+
+const formatBalance = (value) => `INR ${Number(value || 0).toLocaleString("en-IN")}`;
+
 export default function AccountsPage() {
   const [banks, setBanks] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -144,9 +149,9 @@ export default function AccountsPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto mt-12 max-w-6xl space-y-6 px-4">
-        <div className="rounded-2xl border border-[#3a63b5]/45 bg-[rgba(4,12,46,0.9)] p-6">
-          <h1 className="text-3xl font-extrabold text-mist">Funds & Accounts</h1>
+      <div className="mx-auto mt-8 max-w-6xl space-y-6 px-4 pb-8 sm:mt-12">
+        <div className="rounded-2xl border border-[#3a63b5]/45 bg-[rgba(4,12,46,0.9)] p-5 sm:p-6">
+          <h1 className="text-2xl font-extrabold text-mist sm:text-3xl">Funds & Accounts</h1>
           <p className="mt-2 text-sm text-mist/70">
             Add bank accounts and enable the payment methods they support at creation time.
           </p>
@@ -155,7 +160,7 @@ export default function AccountsPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <form
             onSubmit={onCreate}
-            className="rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-6 space-y-4"
+            className="space-y-4 rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-5 sm:p-6"
           >
             <div className="text-lg font-semibold text-mist">Add Bank Account</div>
 
@@ -220,27 +225,138 @@ export default function AccountsPage() {
 
             <button
               type="submit"
-              className="rounded-lg bg-[#22c0ff] px-4 py-2 font-semibold text-[#03102e] disabled:opacity-60"
+              className="min-h-11 rounded-lg bg-[#22c0ff] px-4 py-2 font-semibold text-[#03102e] disabled:opacity-60"
               disabled={saving}
             >
               {saving ? "Saving..." : "Add Bank"}
             </button>
           </form>
 
-          <div className="rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-6">
+          <div className="rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-5 sm:p-6">
             <div className="mb-4 text-lg font-semibold text-mist">Configured Accounts</div>
             {loading ? (
               <div className="text-mist/70">Loading...</div>
             ) : banks.length ? (
-              <div className="overflow-hidden rounded-lg border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)]">
-                <table className="w-full text-left text-sm text-mist">
+              <>
+                <div className="space-y-3 xl:hidden">
+                  {banks.map((bank, index) => {
+                    const isEditing = editingId === bank.id;
+                    const cardClass =
+                      index % 2 === 0 ? "bg-[rgba(7,18,62,0.78)]" : "bg-[rgba(10,25,78,0.78)]";
+
+                    return (
+                      <div
+                        key={bank.id}
+                        className={`overflow-hidden rounded-xl border border-[#3a63b5]/40 ${cardClass}`}
+                      >
+                        <div className="space-y-3 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-base font-semibold text-mist">{bank.name}</div>
+                              <div className="mt-1 text-sm text-mist/70">{bank.identifier || "-"}</div>
+                            </div>
+                            <div className="text-right text-sm font-semibold text-mist">
+                              {formatBalance(bank.balance)}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="text-[11px] uppercase tracking-[0.2em] text-mist/55">
+                              Enabled Methods
+                            </div>
+                            <div className="mt-1 text-sm text-mist/80">
+                              {formatMethods(bank.enabledMethods || [])}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              className="min-h-10 rounded-md border border-[#4f87df]/45 px-3 py-2 text-xs font-semibold text-cyan-200"
+                              onClick={() => startEdit(bank)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="min-h-10 rounded-md bg-red-600/20 px-3 py-2 text-xs font-semibold text-red-200"
+                              onClick={() => onDelete(bank.id)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+
+                          {isEditing ? (
+                            <div className="space-y-3 border-t border-white/10 bg-[rgba(5,14,52,0.92)] p-4">
+                              <input
+                                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                placeholder="Account name"
+                              />
+                              <input
+                                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                                value={editIdentifier}
+                                onChange={(e) => setEditIdentifier(e.target.value)}
+                                placeholder="Identifier (optional)"
+                              />
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                                value={editBalance}
+                                onChange={(e) => setEditBalance(e.target.value)}
+                                placeholder="Balance"
+                              />
+                              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                {METHOD_OPTIONS.map((opt) => (
+                                  <label
+                                    key={opt.value}
+                                    className="flex items-center justify-between rounded-md border border-[#4f87df]/25 bg-[rgba(8,20,66,0.5)] px-3 py-2 text-sm text-mist"
+                                  >
+                                    <span>{opt.label}</span>
+                                    <input
+                                      type="checkbox"
+                                      checked={editMethods.includes(opt.value)}
+                                      onChange={(e) => toggleEditMethod(opt.value, e.target.checked)}
+                                    />
+                                  </label>
+                                ))}
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button
+                                  type="button"
+                                  className="min-h-10 rounded-lg bg-[#22c0ff] px-3 py-2 text-sm font-semibold text-[#03102e] disabled:opacity-60"
+                                  onClick={onSaveEdit}
+                                  disabled={savingEdit}
+                                >
+                                  {savingEdit ? "Saving..." : "Save"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="min-h-10 rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-mist"
+                                  onClick={cancelEdit}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="hidden rounded-lg border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] xl:block">
+                  <table className="w-full table-fixed text-left text-sm text-mist">
                   <thead className="bg-[rgba(7,18,62,0.95)] uppercase tracking-wider text-xs text-mist">
                     <tr>
-                      <th className="px-4 py-3">Name</th>
-                      <th className="px-4 py-3">Identifier</th>
-                      <th className="px-4 py-3">Balance</th>
-                      <th className="px-4 py-3">Methods</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
+                      <th className="w-[18%] px-4 py-3">Name</th>
+                      <th className="w-[18%] px-4 py-3">Identifier</th>
+                      <th className="w-[18%] px-4 py-3">Balance</th>
+                      <th className="w-[28%] px-4 py-3">Methods</th>
+                      <th className="w-[18%] px-4 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -253,14 +369,8 @@ export default function AccountsPage() {
                           <tr className={rowClass}>
                             <td className="px-4 py-4 font-semibold text-mist">{bank.name}</td>
                             <td className="px-4 py-4 text-mist/80">{bank.identifier || "-"}</td>
-                            <td className="px-4 py-4 font-semibold text-mist">
-                              INR {Number(bank.balance || 0).toLocaleString("en-IN")}
-                            </td>
-                            <td className="px-4 py-4 text-mist/80">
-                              {(bank.enabledMethods || []).length
-                                ? bank.enabledMethods.map((m) => m.replaceAll("_", " ")).join(", ")
-                                : "No methods enabled"}
-                            </td>
+                            <td className="px-4 py-4 font-semibold text-mist">{formatBalance(bank.balance)}</td>
+                            <td className="px-4 py-4 text-mist/80 break-words">{formatMethods(bank.enabledMethods || [])}</td>
                             <td className="px-4 py-4 text-right">
                               <button
                                 type="button"
@@ -344,8 +454,9 @@ export default function AccountsPage() {
                       );
                     })}
                   </tbody>
-                </table>
-              </div>
+                  </table>
+                </div>
+              </>
             ) : (
               <div className="text-mist/70">
                 No accounts yet. Create one and enable its payment methods to get started.
