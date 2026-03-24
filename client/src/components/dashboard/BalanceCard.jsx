@@ -6,7 +6,7 @@ const MotionBox = motion.div;
 const BalanceCard = ({ current, lastWeek, lastMonth }) => {
   return (
     <MotionBox
-      className="relative flex min-h-[275px] flex-col justify-center overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-gradient-to-br from-[rgba(4,12,46,0.88)] to-[rgba(8,20,66,0.78)] p-8 text-mist shadow-[0_16px_40px_rgba(0,0,0,0.56),0_0_26px_rgba(0,170,255,0.18)] backdrop-blur"
+      className="relative flex min-h-[275px] flex-col justify-center overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-gradient-to-br from-[rgb(var(--pp-panel-rgb)/0.88)] to-[rgb(var(--pp-panel-soft-rgb)/0.78)] p-8 text-mist shadow-[0_16px_40px_rgba(0,0,0,0.56),0_0_26px_rgba(0,170,255,0.18)] backdrop-blur"
     >
       <div
         className="pointer-events-none absolute inset-0 opacity-35"
@@ -34,3 +34,4 @@ const BalanceCard = ({ current, lastWeek, lastMonth }) => {
 };
 
 export default BalanceCard;
+

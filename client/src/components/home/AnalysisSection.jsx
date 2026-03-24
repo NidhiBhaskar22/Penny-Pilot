@@ -3,7 +3,7 @@ import { Link as RouterLink } from "react-router-dom";
 export default function AnalysisSection() {
   return (
     <section className="mx-auto grid max-w-[1200px] gap-6 px-6 pb-20 md:px-8 lg:grid-cols-[1.05fr_0.95fr]">
-      <div className="rounded-[28px] border border-[#3a63b5]/35 bg-[rgba(4,12,46,0.85)] p-8">
+      <div className="rounded-[28px] border border-[#3a63b5]/35 bg-[rgb(var(--pp-panel-rgb)/0.85)] p-8">
         <div className="text-sm font-bold uppercase tracking-[0.28em] text-peach">
           Analysis
         </div>
@@ -24,7 +24,7 @@ export default function AnalysisSection() {
       </div>
 
       <div className="grid gap-4">
-        <div className="rounded-2xl border border-[#3a63b5]/35 bg-[rgba(7,18,60,0.62)] p-5">
+        <div className="rounded-2xl border border-[#3a63b5]/35 bg-[rgb(var(--pp-panel-strong-rgb)/0.62)] p-5">
           <div className="text-[11px] uppercase tracking-[0.24em] text-mist/55">
             What you can read fast
           </div>
@@ -32,7 +32,7 @@ export default function AnalysisSection() {
             Spending spikes, income consistency, investment direction
           </div>
         </div>
-        <div className="rounded-2xl border border-[#3a63b5]/35 bg-[rgba(7,18,60,0.62)] p-5">
+        <div className="rounded-2xl border border-[#3a63b5]/35 bg-[rgb(var(--pp-panel-strong-rgb)/0.62)] p-5">
           <div className="text-[11px] uppercase tracking-[0.24em] text-mist/55">
             Why it matters
           </div>
@@ -44,3 +44,4 @@ export default function AnalysisSection() {
     </section>
   );
 }
+

@@ -5,7 +5,7 @@ export default function TimeframeSelector({ timeframe, setTimeframe, className =
     <select
       value={timeframe}
       onChange={(e) => setTimeframe(e.target.value)}
-      className={`h-10 rounded-lg border border-[#4f87df]/45 bg-[rgba(4,12,46,0.88)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none ${className}`}
+      className={`h-10 rounded-lg border border-[#4f87df]/45 bg-[rgb(var(--pp-panel-rgb)/0.88)] px-3 text-sm text-mist focus:border-cyan-300 focus:outline-none ${className}`}
     >
       <option value="daily">Daily</option>
       <option value="weekly">Weekly</option>
@@ -14,3 +14,4 @@ export default function TimeframeSelector({ timeframe, setTimeframe, className =
     </select>
   );
 }
+

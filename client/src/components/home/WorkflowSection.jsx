@@ -179,7 +179,7 @@ export default function WorkflowSection() {
               ref={(el) => {
                 cardRefs.current[index] = el;
               }}
-              className="rounded-[28px] border border-[#3a63b5]/35 bg-[linear-gradient(160deg,rgba(4,12,46,0.96),rgba(7,18,60,0.8))] p-6 shadow-[0_16px_50px_rgba(0,0,0,0.4)]"
+              className="rounded-[28px] border border-[#3a63b5]/35 bg-[linear-gradient(160deg,rgb(var(--pp-panel-rgb)/0.96),rgb(var(--pp-panel-strong-rgb)/0.8))] p-6 shadow-[0_16px_50px_rgba(0,0,0,0.4)]"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -188,7 +188,7 @@ export default function WorkflowSection() {
                   </div>
                   <h3 className="mt-4 text-2xl font-black text-mist">{item.title}</h3>
                 </div>
-                <div className="rounded-2xl border border-[#4f87df]/30 bg-[rgba(8,20,66,0.72)] px-3 py-2 text-sm font-black text-mist/80">
+                <div className="rounded-2xl border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.72)] px-3 py-2 text-sm font-black text-mist/80">
                   {item.step}
                 </div>
               </div>
@@ -215,7 +215,7 @@ export default function WorkflowSection() {
         {workflowSteps.map((item) => (
           <div
             key={item.step}
-            className="rounded-[24px] border border-[#3a63b5]/35 bg-[rgba(4,12,46,0.82)] p-6"
+            className="rounded-[24px] border border-[#3a63b5]/35 bg-[rgb(var(--pp-panel-rgb)/0.82)] p-6"
           >
             <div className="text-[11px] font-black uppercase tracking-[0.28em] text-teal">
               Step {item.step}
@@ -228,3 +228,5 @@ export default function WorkflowSection() {
     </section>
   );
 }
+
+

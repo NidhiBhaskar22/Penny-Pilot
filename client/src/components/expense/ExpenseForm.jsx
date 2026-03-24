@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import axiosClient from "../../api/axiosClient";
 
 const ExpenseForm = ({ isOpen, onClose, expense }) => {
@@ -172,7 +172,7 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.95)] p-6 text-mist shadow-[0_16px_40px_rgba(0,0,0,0.5)]">
+      <div className="relative w-full max-w-lg rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.95)] p-6 text-mist shadow-[0_16px_40px_rgba(0,0,0,0.5)]">
         <div className="mb-4 text-lg font-semibold">
           {expense ? "Edit Expense" : "Add Expense"}
         </div>
@@ -188,7 +188,7 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
               type="number"
               step="0.01"
               min="0.01"
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
@@ -197,7 +197,7 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
           <div>
             <label className="mb-1 block text-sm font-medium">Category</label>
             <select
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
               value={categoryId}
               onChange={(e) => {
                 const next = e.target.value;
@@ -222,7 +222,7 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
             <label className="mb-1 block text-sm font-medium">Paid To</label>
             <input
               type="text"
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
               placeholder="Merchant / Payee"
               value={paidTo}
               onChange={(e) => setPaidTo(e.target.value)}
@@ -233,7 +233,7 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
             <label className="mb-1 block text-sm font-medium">Date</label>
             <input
               type="date"
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
               value={spentAt}
               onChange={(e) => setSpentAt(e.target.value)}
             />
@@ -242,7 +242,7 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
           <div>
             <label className="mb-1 block text-sm font-medium">Account</label>
             <select
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
             >
@@ -258,7 +258,7 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
           <div>
             <label className="mb-1 block text-sm font-medium">Payment Method</label>
             <select
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
               disabled={!accountId}
@@ -290,11 +290,11 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
         </form>
         {showCategoryModal ? (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/60 p-4">
-            <div className="w-full max-w-sm rounded-xl border border-[#3a63b5]/45 bg-[rgba(4,12,46,0.98)] p-4">
+            <div className="w-full max-w-sm rounded-xl border border-[#3a63b5]/45 bg-[rgb(var(--pp-panel-rgb)/0.98)] p-4">
               <div className="mb-3 text-sm font-semibold text-mist">Create Category</div>
               <input
                 type="text"
-                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
+                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
                 placeholder="Category name"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
@@ -329,3 +329,4 @@ const ExpenseForm = ({ isOpen, onClose, expense }) => {
 };
 
 export default ExpenseForm;
+

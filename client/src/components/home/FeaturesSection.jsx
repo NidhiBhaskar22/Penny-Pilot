@@ -19,7 +19,7 @@ export default function FeaturesSection() {
         {featureCards.map((card, index) => (
           <motion.div
             key={card.title}
-            className="rounded-[24px] border border-[#3a63b5]/35 bg-[linear-gradient(160deg,rgba(4,12,46,0.92),rgba(7,18,60,0.72))] p-6"
+            className="rounded-[24px] border border-[#3a63b5]/35 bg-[linear-gradient(160deg,rgb(var(--pp-panel-rgb)/0.92),rgb(var(--pp-panel-strong-rgb)/0.72))] p-6"
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.2 }}
@@ -37,3 +37,4 @@ export default function FeaturesSection() {
     </section>
   );
 }
+

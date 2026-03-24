@@ -3,13 +3,14 @@ import axiosClient from "../api/axiosClient";
 
 import IncomeList from "../components/income/IncomeList";
 import IncomeForm from "../components/income/IncomeForm";
+import ConfirmDialog from "../components/ConfirmDialog";
 import AppShell from "../components/layout/AppShell";
 import AnimatedNumber from "../components/dashboard/AnimatedNumber";
 
 function TechCard({ children, ...props }) {
   return (
     <div
-      className="rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.46),0_0_20px_rgba(0,170,255,0.12)]"
+      className="rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.46),0_0_20px_rgba(0,170,255,0.12)]"
       {...props}
     >
       {children}
@@ -26,6 +27,7 @@ const IncomePage = () => {
   const [loading, setLoading] = useState(false);
   const [selectedIncome, setSelectedIncome] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [q, setQ] = useState("");
@@ -116,6 +118,12 @@ const IncomePage = () => {
     }
   };
 
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    await handleDelete(pendingDeleteId);
+    setPendingDeleteId(null);
+  };
+
   useEffect(() => {
     fetchIncomes(page);
   }, [page, pageSize, q, month, source, accountId, categoryId, paymentMethod, sortBy, sortOrder]);
@@ -194,7 +202,7 @@ const IncomePage = () => {
           </TechCard>
         </div>
 
-        <div className="mb-6 rounded-xl border border-[#3a63b5]/30 bg-[rgba(4,12,46,0.55)] p-3">
+        <div className="mb-6 rounded-xl border border-[#3a63b5]/30 bg-[rgb(var(--pp-panel-rgb)/0.55)] p-3">
           <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-mist/70">Filters</div>
           <div className="grid grid-cols-1 gap-2 md:grid-cols-4 xl:grid-cols-8">
             <input
@@ -204,7 +212,7 @@ const IncomePage = () => {
                 setPage(1);
               }}
               placeholder="Search"
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             />
             <input
               type="month"
@@ -213,7 +221,7 @@ const IncomePage = () => {
                 setMonth(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             />
             <input
               value={source}
@@ -222,7 +230,7 @@ const IncomePage = () => {
                 setPage(1);
               }}
               placeholder="Source"
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             />
             <select
               value={accountId}
@@ -230,7 +238,7 @@ const IncomePage = () => {
                 setAccountId(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="">Account</option>
               {accounts.map((acc) => (
@@ -245,7 +253,7 @@ const IncomePage = () => {
                 setCategoryId(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="">Category</option>
               {categories.map((cat) => (
@@ -260,7 +268,7 @@ const IncomePage = () => {
                 setPaymentMethod(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="">Method</option>
               {METHOD_OPTIONS.map((method) => (
@@ -275,7 +283,7 @@ const IncomePage = () => {
                 setSortBy(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="creditedAt">Date</option>
               <option value="amount">Amount</option>
@@ -289,7 +297,7 @@ const IncomePage = () => {
                   setSortOrder(e.target.value);
                   setPage(1);
                 }}
-                className="w-full rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+                className="w-full rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
               >
                 <option value="desc">Desc</option>
                 <option value="asc">Asc</option>
@@ -300,7 +308,7 @@ const IncomePage = () => {
                   setPageSize(Number(e.target.value));
                   setPage(1);
                 }}
-                className="w-full rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+                className="w-full rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
@@ -333,7 +341,7 @@ const IncomePage = () => {
         ) : (
           <>
             <TechCard>
-              <IncomeList incomes={incomes} onEdit={onEdit} onDelete={handleDelete} />
+              <IncomeList incomes={incomes} onEdit={onEdit} onDelete={setPendingDeleteId} />
             </TechCard>
             <div className="mt-4 flex items-center justify-between text-sm text-mist/80">
               <div>
@@ -362,9 +370,20 @@ const IncomePage = () => {
         )}
 
         {isOpen && <IncomeForm isOpen={isOpen} onClose={onFormClose} income={selectedIncome} />}
+        <ConfirmDialog
+          open={!!pendingDeleteId}
+          title="Delete income entry?"
+          message="This income entry will be removed permanently from your records."
+          confirmLabel="Delete"
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDeleteId(null)}
+        />
       </div>
     </AppShell>
   );
 };
 
 export default IncomePage;
+
+
+

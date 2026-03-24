@@ -4,7 +4,7 @@ const LimitsDiffDisplayByCategory = ({ differences = [] }) => {
   const fmt = (n) => Number(n ?? 0).toLocaleString("en-IN");
 
   return (
-    <div className="max-w-[480px] rounded-md border border-[#4f87df]/40 bg-[rgba(8,20,66,0.78)] p-4 text-mist">
+    <div className="max-w-[480px] rounded-md border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.78)] p-4 text-mist">
       <div className="mb-3 text-lg font-extrabold text-mist">
         Difference from Limits by Category
       </div>
@@ -36,3 +36,4 @@ const LimitsDiffDisplayByCategory = ({ differences = [] }) => {
 };
 
 export default LimitsDiffDisplayByCategory;
+

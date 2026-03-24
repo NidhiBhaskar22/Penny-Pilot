@@ -1,6 +1,8 @@
-﻿import React, { useContext } from "react";
+import React, { useContext } from "react";
+import { Moon, Sun } from "lucide-react";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { AuthContext } from "../../context/AuthContext";
+import { useTheme } from "../../context/ThemeContext";
 
 /** Simple inline SVG icons (no extra deps) */
 const Icon = ({ path, className }) => (
@@ -36,9 +38,11 @@ const NavItem = ({ to, icon, label, active, collapsed }) => {
   const content = (
     <RouterLink
       to={to}
-      className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all ${
+      className={`flex rounded-xl text-sm transition-all ${
+        collapsed ? "h-11 w-11 items-center justify-center px-0 py-0" : "items-center gap-3 px-3 py-2.5"
+      } ${
         active
-          ? "border border-[#4f87df]/50 bg-[rgba(14,31,94,0.85)] text-white"
+          ? "border border-[#4f87df]/50 bg-[rgb(var(--pp-panel-soft-rgb)/0.9)] text-mist"
           : "text-mist/80"
       }`}
     >
@@ -50,7 +54,7 @@ const NavItem = ({ to, icon, label, active, collapsed }) => {
   return collapsed ? (
     <div className="group relative">
       {content}
-      <div className="pointer-events-none absolute left-full top-1/2 ml-2 -translate-y-1/2 rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0">
+      <div className="pointer-events-none absolute left-full top-1/2 ml-2 -translate-y-1/2 rounded bg-[rgb(var(--pp-ink-rgb)/0.85)] px-2 py-1 text-xs text-white opacity-0">
         {label}
       </div>
     </div>
@@ -62,8 +66,10 @@ const NavItem = ({ to, icon, label, active, collapsed }) => {
 export default function Sidebar({ collapsed, onToggle }) {
   const location = useLocation();
   const { user, logout } = useContext(AuthContext);
+  const { themeMode, setThemeMode } = useTheme();
   const navigate = useNavigate();
   const isAuthed = !!user;
+  const isDarkMode = themeMode === "dark";
 
   const items = [
     { to: "/dashboard", label: "Dashboard", icon: <IGrid className="h-5 w-5" /> },
@@ -82,7 +88,7 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   return (
     <aside
-      className="fixed left-0 top-0 z-[15] h-screen border-r border-[#3a63b5]/30 bg-[rgba(3,8,38,0.88)] text-mist backdrop-blur-md"
+      className="app-sidebar fixed left-0 top-0 z-[15] h-screen backdrop-blur-md"
       style={{ width: collapsed ? 76 : 260 }}
     >
       <div
@@ -94,19 +100,17 @@ export default function Sidebar({ collapsed, onToggle }) {
       />
 
       <div className="relative flex h-full flex-col">
-        <div className="flex items-center justify-between px-3 pb-3 pt-4">
+        <div className={`px-3 pb-3 pt-4 ${collapsed ? "flex justify-center" : "flex items-center justify-between"}`}>
           {!collapsed ? (
             <RouterLink to="/" className="text-sm font-semibold tracking-wide text-mist">
               PennyPilot
             </RouterLink>
-          ) : (
-            <div className="h-5 w-5" />
-          )}
+          ) : null}
           <button
             type="button"
             onClick={onToggle}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.85)] text-mist"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.85)] text-mist"
           >
             <svg
               viewBox="0 0 24 24"
@@ -127,7 +131,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         </div>
 
         <div className="flex-1 px-2 pt-6">
-          <div className="flex flex-col gap-1.5">
+          <div className={`flex flex-col gap-1.5 ${collapsed ? "items-center" : ""}`}>
             {items.map((it) => (
               <NavItem
                 key={it.to}
@@ -141,10 +145,10 @@ export default function Sidebar({ collapsed, onToggle }) {
           </div>
         </div>
 
-        <div className="relative px-2 pb-3">
+        <div className={`relative pb-3 ${collapsed ? "flex flex-col items-center gap-2 px-0" : "px-2"}`}>
           <div
-            className={`rounded-xl border border-[#3a63b5]/35 bg-[rgba(7,16,58,0.78)] ${
-              collapsed ? "flex justify-center px-2 py-3" : "flex items-center gap-3 px-3 py-2.5"
+            className={`rounded-xl border border-[#3a63b5]/35 bg-[rgb(var(--pp-panel-strong-rgb)/0.8)] ${
+              collapsed ? "flex h-11 w-11 items-center justify-center" : "flex items-center gap-3 px-3 py-2.5"
             }`}
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#22c0ff] text-[#03102e]">
@@ -158,7 +162,50 @@ export default function Sidebar({ collapsed, onToggle }) {
             )}
           </div>
 
-          <div className={`mt-2 ${collapsed ? "flex justify-center" : "flex gap-2"}`}>
+          <div className={collapsed ? "" : "mt-2"}>
+            {collapsed ? (
+              <button
+                type="button"
+                onClick={() => setThemeMode(isDarkMode ? "light" : "dark")}
+                aria-label={`Switch to ${isDarkMode ? "light" : "dark"} theme`}
+                title={`Switch to ${isDarkMode ? "light" : "dark"} theme`}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#4f87df]/35 bg-[rgb(var(--pp-panel-soft-rgb)/0.55)] text-mist"
+              >
+                {isDarkMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+              </button>
+            ) : (
+              <div className="rounded-xl border border-[#3a63b5]/35 bg-[rgb(var(--pp-panel-strong-rgb)/0.8)] px-3 py-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[11px] uppercase tracking-[0.2em] text-mist/45">Theme</div>
+                  <button
+                    type="button"
+                    onClick={() => setThemeMode(isDarkMode ? "light" : "dark")}
+                    aria-label={`Switch to ${isDarkMode ? "light" : "dark"} theme`}
+                    title={`Switch to ${isDarkMode ? "light" : "dark"} theme`}
+                    className={`relative inline-flex h-8 w-16 items-center rounded-full border border-[#4f87df]/35 px-1 transition ${
+                      isDarkMode
+                        ? "bg-[rgb(var(--pp-panel-soft-rgb)/0.65)]"
+                        : "bg-[rgb(var(--pp-panel-soft-rgb)/0.42)]"
+                    }`}
+                  >
+                    <span className="flex w-full items-center justify-between px-1 text-mist/70">
+                      <Sun className="h-3.5 w-3.5" />
+                      <Moon className="h-3.5 w-3.5" />
+                    </span>
+                    <span
+                      className={`absolute top-1 flex h-6 w-6 items-center justify-center rounded-full bg-[#22c0ff] text-[#03102e] shadow-sm transition-transform ${
+                        isDarkMode ? "translate-x-8" : "translate-x-0"
+                      }`}
+                    >
+                      {isDarkMode ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className={collapsed ? "" : "mt-2 flex gap-2"}>
             {isAuthed ? (
               collapsed ? (
                 <button
@@ -210,4 +257,3 @@ export default function Sidebar({ collapsed, onToggle }) {
     </aside>
   );
 }
-

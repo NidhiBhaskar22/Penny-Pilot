@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import axiosClient from "../api/axiosClient";
 import AppShell from "../components/layout/AppShell";
 import AnimatedNumber from "../components/dashboard/AnimatedNumber";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const METHOD_LABELS = {
   NET_BANKING: "Net Banking",
@@ -23,15 +24,15 @@ const CHARGE_PRESETS = [
   },
   {
     value: "ZERO",
-    label: "Unknown or ignore for now (₹0)",
+    label: "Unknown or ignore for now (â‚¹0)",
   },
   {
     value: "DIRECT_MF",
-    label: "Direct mutual fund platforms (usually ₹0 platform charge)",
+    label: "Direct mutual fund platforms (usually â‚¹0 platform charge)",
   },
   {
     value: "ZERODHA_DELIVERY",
-    label: "Zerodha equity delivery / ETF buy (brokerage ₹0, taxes excluded)",
+    label: "Zerodha equity delivery / ETF buy (brokerage â‚¹0, taxes excluded)",
   },
   {
     value: "GROWW_DELIVERY",
@@ -67,7 +68,7 @@ function calculatePresetFee(preset, amount) {
 function TechCard({ children, className = "" }) {
   return (
     <div
-      className={`rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.46),0_0_20px_rgba(0,170,255,0.12)] ${className}`}
+      className={`rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.46),0_0_20px_rgba(0,170,255,0.12)] ${className}`}
     >
       {children}
     </div>
@@ -97,7 +98,7 @@ function fmtSignedPercent(value) {
 
 function DataPoint({ label, value, accentClass = "text-mist" }) {
   return (
-    <div className="rounded-xl border border-[#3a63b5]/25 bg-[rgba(8,20,66,0.55)] px-4 py-3">
+    <div className="rounded-xl border border-[#3a63b5]/25 bg-[rgb(var(--pp-panel-soft-rgb)/0.55)] px-4 py-3">
       <div className="text-[11px] uppercase tracking-[0.22em] text-mist/58">{label}</div>
       <div className={`mt-2 text-lg font-semibold ${accentClass}`}>{value}</div>
     </div>
@@ -116,7 +117,7 @@ function HoldingsTable({ items }) {
   return (
     <div className="overflow-hidden rounded-xl border border-[#3a63b5]/30">
       <table className="w-full text-left text-sm text-mist">
-        <thead className="bg-[rgba(7,18,62,0.95)] text-[11px] uppercase tracking-[0.18em] text-mist/80">
+        <thead className="bg-[rgb(var(--pp-panel-strong-rgb)/0.95)] text-[11px] uppercase tracking-[0.18em] text-mist/80">
           <tr>
             <th className="px-4 py-3">Instrument</th>
             <th className="px-4 py-3">Units</th>
@@ -134,7 +135,7 @@ function HoldingsTable({ items }) {
             return (
               <tr
                 key={item.instrumentId}
-                className={index % 2 === 0 ? "bg-[rgba(7,18,62,0.78)]" : "bg-[rgba(10,25,78,0.78)]"}
+                className={index % 2 === 0 ? "bg-[rgb(var(--pp-panel-strong-rgb)/0.78)]" : "bg-[rgb(var(--pp-panel-soft-rgb)/0.78)]"}
               >
                 <td className="px-4 py-4">
                   <div className="font-semibold text-mist">{isMf ? item.name : item.symbol}</div>
@@ -168,7 +169,7 @@ function TransactionsTable({ items, onDelete }) {
   return (
     <div className="overflow-hidden rounded-xl border border-[#3a63b5]/30">
       <table className="w-full text-left text-sm text-mist">
-        <thead className="bg-[rgba(7,18,62,0.95)] text-[11px] uppercase tracking-[0.18em] text-mist/80">
+        <thead className="bg-[rgb(var(--pp-panel-strong-rgb)/0.95)] text-[11px] uppercase tracking-[0.18em] text-mist/80">
           <tr>
             <th className="px-4 py-3">Date</th>
             <th className="px-4 py-3">Instrument</th>
@@ -185,7 +186,7 @@ function TransactionsTable({ items, onDelete }) {
             return (
               <tr
                 key={item.id}
-                className={index % 2 === 0 ? "bg-[rgba(7,18,62,0.78)]" : "bg-[rgba(10,25,78,0.78)]"}
+                className={index % 2 === 0 ? "bg-[rgb(var(--pp-panel-strong-rgb)/0.78)]" : "bg-[rgb(var(--pp-panel-soft-rgb)/0.78)]"}
               >
                 <td className="px-4 py-4 text-xs text-mist/72">
                   {new Date(item.transactedAt).toLocaleDateString("en-IN")}
@@ -207,7 +208,7 @@ function TransactionsTable({ items, onDelete }) {
                   <button
                     type="button"
                     onClick={() => onDelete(item.id)}
-                    className="rounded-md bg-red-600/20 px-3 py-1.5 text-xs font-semibold text-red-200"
+                    className="app-danger-button rounded-md px-3 py-1.5 text-xs font-semibold"
                   >
                     Delete
                   </button>
@@ -243,6 +244,7 @@ export default function InvestmentPage() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [savingTransaction, setSavingTransaction] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [notice, setNotice] = useState("");
   const [form, setForm] = useState({
     transactionType: "BUY",
@@ -447,6 +449,12 @@ export default function InvestmentPage() {
     }
   };
 
+  const confirmDeleteTransaction = async () => {
+    if (!pendingDeleteId) return;
+    await handleDeleteTransaction(pendingDeleteId);
+    setPendingDeleteId(null);
+  };
+
   const quote = instrumentDetails?.quote;
   const instrument = instrumentDetails?.instrument;
   const profile = instrumentDetails?.profile;
@@ -489,7 +497,7 @@ export default function InvestmentPage() {
                 onClick={() => setNotice("")}
                 className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm text-amber-50 transition hover:bg-white/10"
               >
-                ×
+                Ã—
               </button>
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -577,7 +585,7 @@ export default function InvestmentPage() {
                     ? "Search by AMC, scheme, or category"
                     : "Search NSE/BSE company or ticker"
                 }
-                className="flex-1 rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+                className="flex-1 rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
               />
               <button
                 type="submit"
@@ -598,7 +606,7 @@ export default function InvestmentPage() {
                       ? "Search by AMC, scheme, or category"
                       : "Search NSE/BSE company or ticker"
                   }
-                  className="flex-1 rounded-lg border border-[#4f87df]/30 bg-[rgba(8,20,66,0.68)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+                  className="flex-1 rounded-lg border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.68)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
                 />
                 <button
                   type="submit"
@@ -626,19 +634,19 @@ export default function InvestmentPage() {
                   className={`rounded-xl border px-4 py-3 text-left transition ${
                     selectedInstrument === result.symbol
                       ? "border-cyan-300/70 bg-cyan-400/10 shadow-[0_0_0_1px_rgba(103,197,255,0.15)]"
-                      : "border-[#3a63b5]/18 bg-[rgba(8,20,66,0.5)] hover:border-cyan-300/28 hover:bg-[rgba(10,24,76,0.72)]"
+                      : "border-[#3a63b5]/18 bg-[rgb(var(--pp-panel-soft-rgb)/0.5)] hover:border-cyan-300/28 hover:bg-[rgb(var(--pp-panel-soft-rgb)/0.72)]"
                   }`}
                 >
                   <div className="font-semibold text-mist">
                     {isMutualFundMode ? result.name : result.symbol}
                   </div>
                   <div className="mt-1 inline-block text-sm text-mist/70">
-                    {isMutualFundMode ? `${result.amc} • ${result.category}` : result.name}
+                    {isMutualFundMode ? `${result.amc} â€¢ ${result.category}` : result.name}
                   </div>
                   <div className="ml-2 inline-block text-[11px] uppercase tracking-[0.16em] text-mist/42">
                     {isMutualFundMode
-                      ? `AMFI • NAV ${fmtCurrency(result.nav)} • ${result.navDate}`
-                      : `${result.exchange || "INDIA"} • INR`}
+                      ? `AMFI â€¢ NAV ${fmtCurrency(result.nav)} â€¢ ${result.navDate}`
+                      : `${result.exchange || "INDIA"} â€¢ INR`}
                   </div>
                 </button>
               ))}
@@ -660,8 +668,8 @@ export default function InvestmentPage() {
                   <div className="text-2xl font-bold text-mist">{instrument.name}</div>
                   <div className="mt-1 text-sm uppercase tracking-[0.22em] text-mist/58">
                     {isMutualFundMode
-                      ? `${mfMeta?.schemeCode || ""} • AMFI • INDIA`
-                      : `${instrument.symbol} • ${instrument.exchange || "INDIA"}`}
+                      ? `${mfMeta?.schemeCode || ""} â€¢ AMFI â€¢ INDIA`
+                      : `${instrument.symbol} â€¢ ${instrument.exchange || "INDIA"}`}
                   </div>
                 </div>
 
@@ -703,13 +711,13 @@ export default function InvestmentPage() {
                 ) : null}
 
                 {instrument.description ? (
-                  <div className="rounded-xl border border-[#3a63b5]/25 bg-[rgba(8,20,66,0.55)] px-4 py-3 text-sm leading-6 text-mist/78">
+                  <div className="rounded-xl border border-[#3a63b5]/25 bg-[rgb(var(--pp-panel-soft-rgb)/0.55)] px-4 py-3 text-sm leading-6 text-mist/78">
                     {instrument.description}
                   </div>
                 ) : null}
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-[#3a63b5]/28 bg-[rgba(8,20,66,0.35)] px-4 py-6 text-sm text-mist/65">
+              <div className="rounded-xl border border-dashed border-[#3a63b5]/28 bg-[rgb(var(--pp-panel-soft-rgb)/0.35)] px-4 py-6 text-sm text-mist/65">
                 {isMutualFundMode
                   ? "Search and select an Indian mutual fund to load AMFI-backed NAV details."
                   : "Search and select an NSE/BSE stock or ETF to load India-first details."}
@@ -728,7 +736,7 @@ export default function InvestmentPage() {
                   <select
                     value={form.transactionType}
                     onChange={(e) => setForm((prev) => ({ ...prev, transactionType: e.target.value }))}
-                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                   >
                     <option value="BUY">BUY</option>
                     <option value="SELL">SELL</option>
@@ -740,7 +748,7 @@ export default function InvestmentPage() {
                     type="date"
                     value={form.transactedAt}
                     onChange={(e) => setForm((prev) => ({ ...prev, transactedAt: e.target.value }))}
-                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                   />
                 </div>
                 <div>
@@ -752,7 +760,7 @@ export default function InvestmentPage() {
                     step="0.01"
                     value={form.amount}
                     onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
-                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                   />
                 </div>
                 <div>
@@ -762,7 +770,7 @@ export default function InvestmentPage() {
                     step="0.01"
                     value={form.price}
                     onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))}
-                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                   />
                 </div>
                 <div>
@@ -780,7 +788,7 @@ export default function InvestmentPage() {
                             : calculatePresetFee(nextPreset, prev.amount),
                       }));
                     }}
-                    className="mb-2 w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-sm text-mist"
+                    className="mb-2 w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-sm text-mist"
                   >
                     {CHARGE_PRESETS.map((preset) => (
                       <option key={preset.value} value={preset.value}>
@@ -794,7 +802,7 @@ export default function InvestmentPage() {
                     value={form.fees}
                     onChange={(e) => setForm((prev) => ({ ...prev, fees: e.target.value }))}
                     disabled={form.chargePreset !== "CUSTOM"}
-                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                   />
                   <div className="mt-1 text-xs text-mist/60">
                     Presets are convenience estimates. Broker taxes, STT, stamp duty, and DP charges may still differ.
@@ -808,7 +816,7 @@ export default function InvestmentPage() {
                     type="text"
                     readOnly
                     value={computedQuantity > 0 ? fmtNumber(computedQuantity, 4) : ""}
-                    className="w-full rounded-lg border border-[#4f87df]/30 bg-[rgba(8,20,66,0.55)] px-3 py-2 text-mist/90"
+                    className="w-full rounded-lg border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.55)] px-3 py-2 text-mist/90"
                   />
                   <div className="mt-1 text-xs text-mist/60">
                     {form.transactionType === "BUY"
@@ -821,7 +829,7 @@ export default function InvestmentPage() {
                   <select
                     value={form.accountId}
                     onChange={(e) => setForm((prev) => ({ ...prev, accountId: e.target.value }))}
-                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                   >
                     <option value="">Select account</option>
                     {accounts.map((account) => (
@@ -837,7 +845,7 @@ export default function InvestmentPage() {
                     value={form.paymentMethod}
                     onChange={(e) => setForm((prev) => ({ ...prev, paymentMethod: e.target.value }))}
                     disabled={!form.accountId}
-                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist disabled:opacity-60"
+                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist disabled:opacity-60"
                   >
                     <option value="">Select method</option>
                     {enabledMethods.map((method) => (
@@ -853,7 +861,7 @@ export default function InvestmentPage() {
                     value={form.notes}
                     onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
                     rows={3}
-                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                    className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                   />
                 </div>
               </div>
@@ -890,7 +898,7 @@ export default function InvestmentPage() {
               />
             </div>
             {summary.topHolding ? (
-              <div className="mt-4 rounded-xl border border-[#3a63b5]/25 bg-[rgba(8,20,66,0.55)] px-4 py-3">
+              <div className="mt-4 rounded-xl border border-[#3a63b5]/25 bg-[rgb(var(--pp-panel-soft-rgb)/0.55)] px-4 py-3">
                 <div className="text-[11px] uppercase tracking-[0.22em] text-mist/58">Top Holding</div>
                 <div className="mt-2 text-lg font-semibold text-mist">
                   {summary.topHolding.symbol?.startsWith("AMFI:")
@@ -913,9 +921,24 @@ export default function InvestmentPage() {
             <div className="text-lg font-semibold text-mist">Recent Transactions</div>
             {deletingId ? <span className="text-xs text-red-200">Deleting...</span> : null}
           </div>
-          <TransactionsTable items={transactions} onDelete={handleDeleteTransaction} />
+          <TransactionsTable items={transactions} onDelete={setPendingDeleteId} />
         </TechCard>
       </div>
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        title="Delete investment transaction?"
+        message="This transaction will be removed permanently from your investment history."
+        confirmLabel="Delete"
+        loading={deletingId === pendingDeleteId}
+        onConfirm={confirmDeleteTransaction}
+        onCancel={() => {
+          if (!deletingId) setPendingDeleteId(null);
+        }}
+      />
     </AppShell>
   );
 }
+
+
+
+

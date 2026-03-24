@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import axiosClient from "../../api/axiosClient";
 
 // Helper: IST-safe date string for <input type="date">
@@ -165,7 +165,7 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.95)] p-6 text-mist shadow-[0_16px_40px_rgba(0,0,0,0.5)]">
+      <div className="relative w-full max-w-lg rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.95)] p-6 text-mist shadow-[0_16px_40px_rgba(0,0,0,0.5)]">
         <div className="mb-4 text-lg font-semibold">
           {income ? "Edit Income" : "Add Income"}
         </div>
@@ -183,7 +183,7 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
               inputMode="decimal"
               step="0.01"
               min="0.01"
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
@@ -192,7 +192,7 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
           <div>
             <label className="mb-1 block text-sm font-medium">Source</label>
             <select
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
               value={source}
               onChange={(e) => setSource(e.target.value)}
             >
@@ -206,7 +206,7 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
           <div>
             <label className="mb-1 block text-sm font-medium">Tag (optional)</label>
             <input
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
               value={tag}
               onChange={(e) => setTag(e.target.value)}
               placeholder="Bonus, Freelance, etc."
@@ -216,7 +216,7 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
           <div>
             <label className="mb-1 block text-sm font-medium">Account</label>
             <select
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
               disabled={loadingMeta}
@@ -233,7 +233,7 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
           <div>
             <label className="mb-1 block text-sm font-medium">Payment Method</label>
             <select
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
               disabled={loadingMeta || !accountId}
@@ -262,7 +262,7 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
             <label className="mb-1 block text-sm font-medium">Date</label>
             <input
               type="date"
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
               value={creditedAt}
               onChange={(e) => setCreditedAt(e.target.value)}
             />
@@ -292,5 +292,6 @@ const IncomeForm = ({ isOpen, onClose, income }) => {
 };
 
 export default IncomeForm;
+
 
 

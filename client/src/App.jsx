@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Header from "./components/Header";
 
@@ -22,6 +23,7 @@ import AccountsPage from "./pages/AccountsPage";
 
 const AppRoutes = () => {
   const location = useLocation();
+  const { themeMode, setThemeMode } = useTheme();
   const isAppShellRoute = [
     "/dashboard",
     "/analysis",
@@ -35,7 +37,7 @@ const AppRoutes = () => {
 
   return (
     <>
-      {!isAppShellRoute && <Header />}
+      {!isAppShellRoute && <Header themeMode={themeMode} setThemeMode={setThemeMode} />}
       <Routes>
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/" element={<HomePage />} />
@@ -105,13 +107,15 @@ const AppRoutes = () => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router
-        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-      >
-        <AppRoutes />
-      </Router>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router
+          future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+        >
+          <AppRoutes />
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

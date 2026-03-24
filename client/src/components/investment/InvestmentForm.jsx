@@ -179,7 +179,7 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.95)] p-6 text-mist shadow-[0_16px_40px_rgba(0,0,0,0.5)]">
+      <div className="relative w-full max-w-lg rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.95)] p-6 text-mist shadow-[0_16px_40px_rgba(0,0,0,0.5)]">
         <div className="mb-4 text-lg font-semibold">
           {investment ? "Edit Investment" : "Add Investment"}
         </div>
@@ -196,7 +196,7 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               min={1}
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
             />
           </div>
 
@@ -205,7 +205,7 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
             <select
               value={instrument}
               onChange={(e) => setInstrument(e.target.value)}
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
             >
               <option value="">Select instrument</option>
               <option value="SIP">SIP</option>
@@ -226,7 +226,7 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
                 }
                 setSelectedResource(next);
               }}
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
             >
               <option value="">Select resource</option>
               {resourceOptions.map((s) => (
@@ -244,7 +244,7 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
               type="date"
               value={investedDate}
               onChange={(e) => setInvestedDate(e.target.value)}
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
             />
           </div>
 
@@ -253,7 +253,7 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
             <select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
             >
               <option value="">Select account</option>
               {bankAccounts.map((a) => (
@@ -269,7 +269,7 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
             <select
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist focus:border-cyan-300 focus:outline-none"
               disabled={!accountId}
             >
               <option value="">Select method</option>
@@ -301,11 +301,11 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
 
         {showResourceModal ? (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/60 p-4">
-            <div className="w-full max-w-sm rounded-xl border border-[#3a63b5]/45 bg-[rgba(4,12,46,0.98)] p-4">
+            <div className="w-full max-w-sm rounded-xl border border-[#3a63b5]/45 bg-[rgb(var(--pp-panel-rgb)/0.98)] p-4">
               <div className="mb-3 text-sm font-semibold text-mist">Add Resource</div>
               <input
                 type="text"
-                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
+                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
                 placeholder="e.g. TATAMOTORS / Smallcap Fund / Gold ETF"
                 value={newResourceName}
                 onChange={(e) => setNewResourceName(e.target.value)}
@@ -338,3 +338,4 @@ const InvestmentForm = ({ isOpen, onClose, investment }) => {
 };
 
 export default InvestmentForm;
+

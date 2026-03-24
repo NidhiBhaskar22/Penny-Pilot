@@ -9,7 +9,7 @@ function TechBg() {
         className="absolute inset-0 bg-cover bg-center"
         style={{ backgroundImage: `url(${bgAuth})` }}
       /> */}
-      <div className="absolute inset-0 bg-[rgba(1,5,35,0.75)]" />
+      <div className="absolute inset-0 bg-[rgb(var(--pp-page-rgb)/0.72)]" />
       {/* cool light bloom */}
       <div
         className="absolute -inset-[12%] blur-[32px] opacity-65"
@@ -23,7 +23,7 @@ function TechBg() {
         }}
       />
       <div
-        className="absolute inset-0 opacity-35 mix-blend-screen"
+        className="absolute inset-0 opacity-35 mix-blend-screen [@media(prefers-color-scheme:light)]:opacity-20 [@media(prefers-color-scheme:light)]:mix-blend-normal"
         style={{
           backgroundImage:
             "repeating-linear-gradient(to bottom, transparent 0px, transparent 2px, rgba(180,220,255,.05) 3px)",
@@ -47,7 +47,7 @@ export default function AppShell({ children }) {
   const sidebarW = collapsed ? 76 : 260;
 
   return (
-    <div className="relative min-h-screen">
+    <div className="app-page relative min-h-screen">
       <TechBg />
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((v) => !v)} />
       {/* content area */}

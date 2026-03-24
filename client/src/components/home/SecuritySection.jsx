@@ -34,7 +34,7 @@ const securityItems = [
 export default function SecuritySection() {
   return (
     <section className="mx-auto max-w-[1240px] px-6 pb-20 md:px-8">
-      <div className="relative overflow-hidden rounded-[36px] border border-[#4f87df]/24 bg-[linear-gradient(160deg,rgba(5,14,44,0.94),rgba(4,10,22,0.84))] p-8 shadow-[0_24px_80px_rgba(0,0,0,0.38)] md:p-10">
+      <div className="relative overflow-hidden rounded-[36px] border border-[#4f87df]/24 bg-[linear-gradient(160deg,rgb(var(--pp-panel-rgb)/0.94),rgb(var(--pp-panel-rgb)/0.84))] p-8 shadow-[0_24px_80px_rgba(0,0,0,0.38)] md:p-10">
         <div className="pointer-events-none absolute -left-16 top-8 h-48 w-48 rounded-full bg-teal/8 blur-3xl" />
         <div className="pointer-events-none absolute right-10 top-10 h-40 w-40 rounded-full bg-cyan-300/8 blur-3xl" />
 
@@ -54,7 +54,7 @@ export default function SecuritySection() {
 
             <div className="mt-10 flex items-center gap-8">
               <motion.div
-                className="relative flex h-24 w-24 items-center justify-center rounded-full border border-teal/20 bg-[radial-gradient(circle,rgba(113,221,210,0.16),rgba(8,20,66,0.88)_72%)]"
+                className="relative flex h-24 w-24 items-center justify-center rounded-full border border-teal/20 bg-[radial-gradient(circle,rgba(113,221,210,0.16),rgb(var(--pp-panel-soft-rgb)/0.88)_72%)]"
                 animate={{ rotate: 360 }}
                 transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
               >
@@ -82,7 +82,7 @@ export default function SecuritySection() {
               return (
                 <motion.div
                   key={item.title}
-                  className={`group relative overflow-hidden border border-white/10 bg-[rgba(8,20,66,0.5)] p-5 backdrop-blur-sm ${item.shape}`}
+                  className={`group relative overflow-hidden border border-white/10 bg-[rgb(var(--pp-panel-soft-rgb)/0.5)] p-5 backdrop-blur-sm ${item.shape}`}
                   initial={{ opacity: 0, y: 22 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, amount: 0.2 }}
@@ -114,3 +114,5 @@ export default function SecuritySection() {
     </section>
   );
 }
+
+

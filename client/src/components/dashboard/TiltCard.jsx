@@ -28,7 +28,7 @@ export default function TiltCard({ children, className = "", ...props }) {
       ref={ref}
       onMouseMove={handleMove}
       onMouseLeave={reset}
-      className={`relative overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-8 text-mist shadow-[0_14px_40px_rgba(0,0,0,0.55),0_0_30px_rgba(0,170,255,0.18)] backdrop-blur ${className}`}
+      className={`relative overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)] p-8 text-mist shadow-[0_14px_40px_rgba(0,0,0,0.55),0_0_30px_rgba(0,170,255,0.18)] backdrop-blur ${className}`}
       style={{
         transform: "perspective(800px) rotateX(var(--rx)) rotateY(var(--ry))",
         transition: "transform .1s ease, box-shadow .2s ease",
@@ -60,3 +60,4 @@ export default function TiltCard({ children, className = "", ...props }) {
     </MBox>
   );
 }
+

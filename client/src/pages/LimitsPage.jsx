@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useMotionValue, useSpring, useMotionValueEvent } from "framer-motion";
 import axiosClient from "../api/axiosClient";
 
@@ -8,7 +8,7 @@ import AppShell from "../components/layout/AppShell";
 function TechCard({ children, ...props }) {
   return (
     <div
-      className="rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.46),0_0_20px_rgba(0,170,255,0.12)]"
+      className="rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.46),0_0_20px_rgba(0,170,255,0.12)]"
       {...props}
     >
       {children}
@@ -206,7 +206,7 @@ const LimitsPage = () => {
           </TechCard>
         </div>
 
-        <div className="mb-6 rounded-xl border border-[#3a63b5]/30 bg-[rgba(4,12,46,0.55)] p-3">
+        <div className="mb-6 rounded-xl border border-[#3a63b5]/30 bg-[rgb(var(--pp-panel-rgb)/0.55)] p-3">
           <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-mist/70">Filters</div>
           <div className="grid grid-cols-1 gap-2 md:grid-cols-4 xl:grid-cols-7">
             <input
@@ -216,7 +216,7 @@ const LimitsPage = () => {
                 setPage(1);
               }}
               placeholder="Search"
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             />
             <select
               value={scope}
@@ -224,7 +224,7 @@ const LimitsPage = () => {
                 setScope(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="">Scope</option>
               <option value="DAILY">Daily</option>
@@ -237,7 +237,7 @@ const LimitsPage = () => {
                 setCategoryId(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="">Category</option>
               {categories.map((cat) => (
@@ -252,7 +252,7 @@ const LimitsPage = () => {
                 setSortBy(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="id">Latest</option>
               <option value="amount">Amount</option>
@@ -266,7 +266,7 @@ const LimitsPage = () => {
                 setSortOrder(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="desc">Desc</option>
               <option value="asc">Asc</option>
@@ -277,7 +277,7 @@ const LimitsPage = () => {
                 setPageSize(Number(e.target.value));
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>
@@ -303,9 +303,9 @@ const LimitsPage = () => {
 
         {limits.length > 0 ? (
           <div>
-            <div className="overflow-hidden rounded-lg border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)]">
+            <div className="overflow-hidden rounded-lg border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)]">
               <table className="w-full text-left text-sm text-mist">
-                <thead className="bg-[rgba(7,18,62,0.95)] uppercase tracking-wider text-xs text-mist">
+                <thead className="bg-[rgb(var(--pp-panel-strong-rgb)/0.95)] uppercase tracking-wider text-xs text-mist">
                   <tr>
                     <th className="px-4 py-3"> </th>
                     <th className="px-4 py-3">Category</th>
@@ -319,7 +319,7 @@ const LimitsPage = () => {
                   {limits.map((limit, index) => (
                     <tr
                       key={limit.id || limit._id || `${limit.category?.name || "general"}-${limit.scope}-${limit.amount}`}
-                      className={index % 2 === 0 ? "bg-[rgba(7,18,62,0.78)]" : "bg-[rgba(10,25,78,0.78)]"}
+                      className={index % 2 === 0 ? "bg-[rgb(var(--pp-panel-strong-rgb)/0.78)]" : "bg-[rgb(var(--pp-panel-soft-rgb)/0.78)]"}
                     >
                       <td className="px-4 py-4">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sand text-brand-900 font-semibold">
@@ -347,7 +347,7 @@ const LimitsPage = () => {
             </div>
             <div className="mt-4 flex items-center justify-between text-sm text-mist/80">
               <div>
-                Page {pagination.page} of {pagination.totalPages || 1} • Total {pagination.total} entries
+                Page {pagination.page} of {pagination.totalPages || 1} � Total {pagination.total} entries
               </div>
               <div className="flex gap-2">
                 <button
@@ -382,3 +382,4 @@ const LimitsPage = () => {
 };
 
 export default LimitsPage;
+

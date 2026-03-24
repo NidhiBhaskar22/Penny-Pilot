@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import AppShell from "../components/layout/AppShell";
 import axiosClient from "../api/axiosClient";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 const METHOD_OPTIONS = [
   { value: "NET_BANKING", label: "Net Banking" },
@@ -30,6 +31,8 @@ export default function AccountsPage() {
   const [editIdentifier, setEditIdentifier] = useState("");
   const [editBalance, setEditBalance] = useState("");
   const [editMethods, setEditMethods] = useState([]);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -140,17 +143,26 @@ export default function AccountsPage() {
 
   const onDelete = async (id) => {
     try {
+      setDeletingId(id);
       await axiosClient.delete(`/accounts/${id}`);
       await load();
     } catch (err) {
       setNotice(err.response?.data?.message || "Failed to remove account");
+    } finally {
+      setDeletingId(null);
     }
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    await onDelete(pendingDeleteId);
+    setPendingDeleteId(null);
   };
 
   return (
     <AppShell>
       <div className="mx-auto mt-8 max-w-6xl space-y-6 px-4 pb-8 sm:mt-12">
-        <div className="rounded-2xl border border-[#3a63b5]/45 bg-[rgba(4,12,46,0.9)] p-5 sm:p-6">
+        <div className="rounded-2xl border border-[#3a63b5]/45 bg-[rgb(var(--pp-panel-rgb)/0.9)] p-5 sm:p-6">
           <h1 className="text-2xl font-extrabold text-mist sm:text-3xl">Funds & Accounts</h1>
           <p className="mt-2 text-sm text-mist/70">
             Add bank accounts and enable the payment methods they support at creation time.
@@ -160,14 +172,14 @@ export default function AccountsPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <form
             onSubmit={onCreate}
-            className="space-y-4 rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-5 sm:p-6"
+            className="space-y-4 rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)] p-5 sm:p-6"
           >
             <div className="text-lg font-semibold text-mist">Add Bank Account</div>
 
             <div>
               <label className="mb-1 block text-sm text-mist">Name</label>
               <input
-                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                 placeholder="HDFC Savings"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -177,7 +189,7 @@ export default function AccountsPage() {
             <div>
               <label className="mb-1 block text-sm text-mist">Identifier (optional)</label>
               <input
-                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                 placeholder="Last 4 / note"
                 value={bankIdentifier}
                 onChange={(e) => setBankIdentifier(e.target.value)}
@@ -189,7 +201,7 @@ export default function AccountsPage() {
               <input
                 type="number"
                 step="0.01"
-                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                 value={openingBalance}
                 onChange={(e) => setOpeningBalance(e.target.value)}
               />
@@ -201,7 +213,7 @@ export default function AccountsPage() {
                 {METHOD_OPTIONS.map((opt) => (
                   <label
                     key={opt.value}
-                    className="flex items-center justify-between rounded-md border border-[#4f87df]/25 bg-[rgba(8,20,66,0.5)] px-3 py-2 text-sm text-mist"
+                    className="flex items-center justify-between rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-soft-rgb)/0.5)] px-3 py-2 text-sm text-mist"
                   >
                     <span>{opt.label}</span>
                     <input
@@ -232,7 +244,7 @@ export default function AccountsPage() {
             </button>
           </form>
 
-          <div className="rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-5 sm:p-6">
+          <div className="rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)] p-5 sm:p-6">
             <div className="mb-4 text-lg font-semibold text-mist">Configured Accounts</div>
             {loading ? (
               <div className="text-mist/70">Loading...</div>
@@ -242,7 +254,7 @@ export default function AccountsPage() {
                   {banks.map((bank, index) => {
                     const isEditing = editingId === bank.id;
                     const cardClass =
-                      index % 2 === 0 ? "bg-[rgba(7,18,62,0.78)]" : "bg-[rgba(10,25,78,0.78)]";
+                      index % 2 === 0 ? "bg-[rgb(var(--pp-panel-strong-rgb)/0.78)]" : "bg-[rgb(var(--pp-panel-soft-rgb)/0.78)]";
 
                     return (
                       <div
@@ -279,23 +291,23 @@ export default function AccountsPage() {
                             </button>
                             <button
                               type="button"
-                              className="min-h-10 rounded-md bg-red-600/20 px-3 py-2 text-xs font-semibold text-red-200"
-                              onClick={() => onDelete(bank.id)}
+                              className="app-danger-button min-h-10 rounded-md px-3 py-2 text-xs font-semibold"
+                              onClick={() => setPendingDeleteId(bank.id)}
                             >
                               Delete
                             </button>
                           </div>
 
                           {isEditing ? (
-                            <div className="space-y-3 border-t border-white/10 bg-[rgba(5,14,52,0.92)] p-4">
+                            <div className="space-y-3 border-t border-white/10 bg-[rgb(var(--pp-panel-rgb)/0.92)] p-4">
                               <input
-                                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                                 value={editName}
                                 onChange={(e) => setEditName(e.target.value)}
                                 placeholder="Account name"
                               />
                               <input
-                                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                                 value={editIdentifier}
                                 onChange={(e) => setEditIdentifier(e.target.value)}
                                 placeholder="Identifier (optional)"
@@ -303,7 +315,7 @@ export default function AccountsPage() {
                               <input
                                 type="number"
                                 step="0.01"
-                                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                                 value={editBalance}
                                 onChange={(e) => setEditBalance(e.target.value)}
                                 placeholder="Balance"
@@ -312,7 +324,7 @@ export default function AccountsPage() {
                                 {METHOD_OPTIONS.map((opt) => (
                                   <label
                                     key={opt.value}
-                                    className="flex items-center justify-between rounded-md border border-[#4f87df]/25 bg-[rgba(8,20,66,0.5)] px-3 py-2 text-sm text-mist"
+                                    className="flex items-center justify-between rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-soft-rgb)/0.5)] px-3 py-2 text-sm text-mist"
                                   >
                                     <span>{opt.label}</span>
                                     <input
@@ -348,9 +360,9 @@ export default function AccountsPage() {
                   })}
                 </div>
 
-                <div className="hidden rounded-lg border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] xl:block">
+                <div className="hidden rounded-lg border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)] xl:block">
                   <table className="w-full table-fixed text-left text-sm text-mist">
-                  <thead className="bg-[rgba(7,18,62,0.95)] uppercase tracking-wider text-xs text-mist">
+                  <thead className="bg-[rgb(var(--pp-panel-strong-rgb)/0.95)] uppercase tracking-wider text-xs text-mist">
                     <tr>
                       <th className="w-[18%] px-4 py-3">Name</th>
                       <th className="w-[18%] px-4 py-3">Identifier</th>
@@ -363,7 +375,7 @@ export default function AccountsPage() {
                     {banks.map((bank, index) => {
                       const isEditing = editingId === bank.id;
                       const rowClass =
-                        index % 2 === 0 ? "bg-[rgba(7,18,62,0.78)]" : "bg-[rgba(10,25,78,0.78)]";
+                        index % 2 === 0 ? "bg-[rgb(var(--pp-panel-strong-rgb)/0.78)]" : "bg-[rgb(var(--pp-panel-soft-rgb)/0.78)]";
                       return (
                         <React.Fragment key={bank.id}>
                           <tr className={rowClass}>
@@ -381,26 +393,26 @@ export default function AccountsPage() {
                               </button>
                               <button
                                 type="button"
-                                className="ml-2 rounded-md bg-red-600/20 px-3 py-1.5 text-xs font-semibold text-red-200"
-                                onClick={() => onDelete(bank.id)}
+                                className="app-danger-button ml-2 rounded-md px-3 py-1.5 text-xs font-semibold"
+                                onClick={() => setPendingDeleteId(bank.id)}
                               >
                                 Delete
                               </button>
                             </td>
                           </tr>
                           {isEditing ? (
-                            <tr className="bg-[rgba(5,14,52,0.92)]">
+                            <tr className="bg-[rgb(var(--pp-panel-rgb)/0.92)]">
                               <td className="px-4 py-4" colSpan={5}>
                                 <div className="space-y-3">
                                   <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                                     <input
-                                      className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                                      className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                                       value={editName}
                                       onChange={(e) => setEditName(e.target.value)}
                                       placeholder="Account name"
                                     />
                                     <input
-                                      className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                                      className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                                       value={editIdentifier}
                                       onChange={(e) => setEditIdentifier(e.target.value)}
                                       placeholder="Identifier (optional)"
@@ -408,7 +420,7 @@ export default function AccountsPage() {
                                     <input
                                       type="number"
                                       step="0.01"
-                                      className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgba(8,20,66,0.82)] px-3 py-2 text-mist"
+                                      className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist"
                                       value={editBalance}
                                       onChange={(e) => setEditBalance(e.target.value)}
                                       placeholder="Balance"
@@ -418,7 +430,7 @@ export default function AccountsPage() {
                                     {METHOD_OPTIONS.map((opt) => (
                                       <label
                                         key={opt.value}
-                                        className="flex items-center justify-between rounded-md border border-[#4f87df]/25 bg-[rgba(8,20,66,0.5)] px-3 py-2 text-sm text-mist"
+                                        className="flex items-center justify-between rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-soft-rgb)/0.5)] px-3 py-2 text-sm text-mist"
                                       >
                                         <span>{opt.label}</span>
                                         <input
@@ -468,7 +480,20 @@ export default function AccountsPage() {
         <div className="text-xs text-mist/60">
           Note: Disabling a method removes it only if it has no linked transactions.
         </div>
+        <ConfirmDialog
+          open={!!pendingDeleteId}
+          title="Delete account?"
+          message="This account will be removed permanently. Linked transactions may block deletion until they are reassigned or removed."
+          confirmLabel="Delete"
+          loading={deletingId === pendingDeleteId}
+          onConfirm={confirmDelete}
+          onCancel={() => {
+            if (!deletingId) setPendingDeleteId(null);
+          }}
+        />
       </div>
     </AppShell>
   );
 }
+
+

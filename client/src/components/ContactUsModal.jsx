@@ -20,10 +20,10 @@ export default function ContactUsModal({ open, onClose }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/75 px-4 py-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgb(var(--pp-ink-rgb)/0.42)] px-4 py-6 backdrop-blur-sm">
       <div className="absolute inset-0" aria-hidden="true" onClick={onClose} />
 
-      <div className="relative w-full max-w-xl overflow-hidden rounded-[28px] border border-[#4f87df]/30 bg-[linear-gradient(180deg,rgba(8,18,58,0.98),rgba(4,10,34,0.97))] shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
+      <div className="app-modal relative w-full max-w-xl overflow-hidden rounded-[28px]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,192,255,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(255,198,111,0.12),transparent_28%)]" />
 
         <div className="relative p-5 sm:p-6">
@@ -32,15 +32,15 @@ export default function ContactUsModal({ open, onClose }) {
               <div className="text-[11px] uppercase tracking-[0.28em] text-sky-200/70">
                 Contact Us
               </div>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Reach out to PennyPilot</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-300">
+              <h2 className="mt-2 text-2xl font-semibold text-mist">Reach out to PennyPilot</h2>
+              <p className="mt-2 text-sm leading-6 text-mist/72">
                 Contact details are shown below.
               </p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-slate-200"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-mist"
               aria-label="Close contact modal"
             >
               x
@@ -50,8 +50,8 @@ export default function ContactUsModal({ open, onClose }) {
           <div className="mt-6 space-y-4">
             
 
-            <div className="rounded-2xl border border-[#4f87df]/25 bg-[rgba(10,20,62,0.68)] p-4">
-              <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400">
+            <div className="app-surface-soft rounded-2xl p-4">
+              <div className="text-[11px] uppercase tracking-[0.24em] text-mist/55">
                 Contact Links
               </div>
               <div className="mt-3 flex flex-col gap-3 text-sm">

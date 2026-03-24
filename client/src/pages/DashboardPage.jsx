@@ -55,14 +55,14 @@ const METHOD_OPTIONS = [
 
 const KpiCard = ({ label, value, badge }) => (
   <MotionBox
-    className="relative overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-8 shadow-[0_16px_42px_rgba(0,0,0,0.48),0_0_24px_rgba(0,170,255,0.12)]"
+    className="relative overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)] p-8 shadow-[0_16px_42px_rgba(0,0,0,0.48),0_0_24px_rgba(0,170,255,0.12)]"
     variants={dashboardFade}
   >
     <div className="mb-4 flex items-center justify-between">
       <div className="text-xs font-bold uppercase tracking-widest text-mist/80">
         {label}
       </div>
-      <span className="rounded-full border border-cyan-300/45 bg-cyan-400/10 px-2 text-[10px] uppercase tracking-wider text-cyan-200">
+      <span className="app-accent-chip rounded-full px-2 text-[10px] uppercase tracking-wider">
         {badge}
       </span>
     </div>
@@ -76,7 +76,7 @@ const KpiCard = ({ label, value, badge }) => (
 );
 
 const InlineStat = ({ title, value, icon: Icon, accentClass, iconBgClass }) => (
-  <div className="flex min-w-0 items-center gap-3 rounded-xl border border-[#3a63b5]/28 bg-[rgba(7,18,60,0.68)] px-4 py-3">
+  <div className="flex min-w-0 items-center gap-3 rounded-xl border border-[#3a63b5]/28 bg-[rgb(var(--pp-panel-strong-rgb)/0.68)] px-4 py-3">
     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBgClass}`}>
       <Icon className={`h-5 w-5 ${accentClass}`} strokeWidth={2.1} />
     </div>
@@ -225,8 +225,8 @@ const DashboardPage = () => {
     return (
       <AppShell>
         <div className="mx-auto mt-12 max-w-4xl px-4">
-          <div className="rounded-2xl border border-[#3a63b5]/45 bg-gradient-to-br from-[rgba(3,10,40,0.94)] to-[rgba(6,20,68,0.9)] p-8 shadow-[0_18px_45px_rgba(0,0,0,0.56),0_0_30px_rgba(0,190,255,0.12)]">
-            <div className="text-xs font-bold uppercase tracking-[0.24em] text-cyan-200/80">
+          <div className="rounded-2xl border border-[#3a63b5]/45 bg-gradient-to-br from-[rgb(var(--pp-panel-rgb)/0.94)] to-[rgb(var(--pp-panel-soft-rgb)/0.9)] p-8 shadow-[0_18px_45px_rgba(0,0,0,0.56),0_0_30px_rgba(0,190,255,0.12)]">
+            <div className="text-xs font-bold uppercase tracking-[0.24em] text-[rgb(var(--pp-brand-400-rgb)/0.82)]">
               Setup Required
             </div>
             <h1 className="mt-4 text-3xl font-extrabold text-mist">
@@ -284,7 +284,7 @@ const DashboardPage = () => {
         />
 
         <MotionBox variants={stagger} initial="hidden" animate="visible">
-          <div className="relative mb-8 overflow-hidden rounded-2xl border border-[#3a63b5]/45 bg-gradient-to-br from-[rgba(3,10,40,0.94)] to-[rgba(6,20,68,0.9)] p-6 shadow-[0_18px_45px_rgba(0,0,0,0.56),0_0_30px_rgba(0,190,255,0.2)]">
+          <div className="relative mb-8 overflow-hidden rounded-2xl border border-[#3a63b5]/45 bg-gradient-to-br from-[rgb(var(--pp-panel-rgb)/0.94)] to-[rgb(var(--pp-panel-soft-rgb)/0.9)] p-6 shadow-[0_18px_45px_rgba(0,0,0,0.56),0_0_30px_rgba(0,190,255,0.2)]">
             <div
               className="absolute inset-0 opacity-90"
               style={{
@@ -300,14 +300,14 @@ const DashboardPage = () => {
                 Live view of your income, expenses, investments, and net flow
               </div>
               {summary.label && (
-                <div className="mt-3 inline-flex rounded-full border border-cyan-300/45 bg-cyan-400/10 px-3 py-1 text-xs uppercase tracking-wider text-cyan-200">
+                <div className="app-accent-chip mt-3 inline-flex rounded-full px-3 py-1 text-xs uppercase tracking-wider">
                   Active Window: {summary.label}
                 </div>
               )}
               <div className="mt-4">
                 <Link
                   to="/analysis"
-                  className="inline-flex h-9 items-center rounded-md border border-[#4f87df]/30 px-3 text-sm font-semibold text-cyan-200 transition hover:border-cyan-300/60 hover:text-cyan-100"
+                  className="app-accent-link inline-flex h-9 items-center rounded-md px-3 text-sm font-semibold transition"
                 >
                   Open Full Analysis
                 </Link>
@@ -326,19 +326,19 @@ const DashboardPage = () => {
             <KpiCard label="Net Flow" value={netFlow} badge="DELTA" />
           </div>
 
-          <div className="mb-8 rounded-lg border border-[#3a63b5]/20 bg-[rgba(4,12,46,0.45)] p-2.5">
+          <div className="mb-8 rounded-lg border border-[#3a63b5]/20 bg-[rgb(var(--pp-panel-rgb)/0.45)] p-2.5">
             <div className="grid grid-cols-1 gap-1.5 md:grid-cols-3 xl:grid-cols-7">
               <TimeframeSelector
                 timeframe={draftFilters.timeframe}
                 setTimeframe={(value) =>
                   setDraftFilters((prev) => ({ ...prev, timeframe: value }))
                 }
-                className="h-8 rounded-md border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] text-sm"
+                className="h-8 rounded-md border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] text-sm"
               />
               {draftFilters.timeframe === "monthly" && (
                 <input
                   type="month"
-                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
                   value={draftFilters.anchorMonth}
                   onChange={(e) =>
                     setDraftFilters((prev) => ({
@@ -351,7 +351,7 @@ const DashboardPage = () => {
               {draftFilters.timeframe === "weekly" && (
                 <input
                   type="week"
-                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
                   value={draftFilters.anchorWeek}
                   onChange={(e) =>
                     setDraftFilters((prev) => ({
@@ -364,7 +364,7 @@ const DashboardPage = () => {
               {draftFilters.timeframe === "daily" && (
                 <input
                   type="date"
-                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
                   value={draftFilters.anchorDate}
                   onChange={(e) =>
                     setDraftFilters((prev) => ({
@@ -379,7 +379,7 @@ const DashboardPage = () => {
                   type="number"
                   min="2000"
                   max="2100"
-                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
                   value={draftFilters.anchorYear}
                   onChange={(e) =>
                     setDraftFilters((prev) => ({
@@ -391,7 +391,7 @@ const DashboardPage = () => {
                 />
               )}
               <select
-                className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
                 value={draftFilters.accountId}
                 onChange={(e) =>
                   setDraftFilters((prev) => ({ ...prev, accountId: e.target.value }))
@@ -405,7 +405,7 @@ const DashboardPage = () => {
                 ))}
               </select>
               <select
-                className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgba(4,12,46,0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
                 value={draftFilters.methodType}
                 onChange={(e) =>
                   setDraftFilters((prev) => ({ ...prev, methodType: e.target.value }))
@@ -443,13 +443,13 @@ const DashboardPage = () => {
           </div>
 
           <div className="mb-8">
-            <div className="relative overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-0 shadow-[0_16px_42px_rgba(0,0,0,0.48),0_0_24px_rgba(0,170,255,0.12)]">
+            <div className="relative overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)] p-0 shadow-[0_16px_42px_rgba(0,0,0,0.48),0_0_24px_rgba(0,170,255,0.12)]">
               <div className="p-6">
                 <div className="mb-4 flex items-center justify-between">
                   <div className="text-2xl font-extrabold tracking-wide text-mist">
                     Balance Overview
                   </div>
-                  <span className="rounded-full border border-cyan-300/45 bg-cyan-400/10 px-3 py-1 text-xs uppercase tracking-wider text-cyan-200">
+                  <span className="app-accent-chip rounded-full px-3 py-1 text-xs uppercase tracking-wider">
                     Live
                   </span>
                 </div>
@@ -458,41 +458,41 @@ const DashboardPage = () => {
                     title="Balance"
                     value={summary.balances.current}
                     icon={Wallet}
-                    accentClass="text-cyan-300"
-                    iconBgClass="bg-cyan-400/12"
+                    accentClass="text-[rgb(var(--pp-brand-400-rgb))]"
+                    iconBgClass="app-icon-bg"
                   />
                   <InlineStat
                     title="Last Week"
                     value={summary.balances.lastWeek}
                     icon={Clock3}
-                    accentClass="text-blue-300"
-                    iconBgClass="bg-blue-400/12"
+                    accentClass="text-sky-500"
+                    iconBgClass="bg-sky-500/12"
                   />
                   <InlineStat
                     title="Last Month"
                     value={summary.balances.lastMonth}
                     icon={Clock3}
-                    accentClass="text-violet-300"
-                    iconBgClass="bg-violet-400/12"
+                    accentClass="text-violet-500"
+                    iconBgClass="bg-violet-500/12"
                   />
                   <InlineStat
                     title="Net Flow"
                     value={netFlow}
                     icon={netFlow < 0 ? TrendingDown : TrendingUp}
-                    accentClass={netFlow < 0 ? "text-red-300" : "text-cyan-300"}
-                    iconBgClass={netFlow < 0 ? "bg-red-400/12" : "bg-cyan-400/12"}
+                    accentClass={netFlow < 0 ? "text-rose-500" : "text-[rgb(var(--pp-brand-400-rgb))]"}
+                    iconBgClass={netFlow < 0 ? "bg-rose-500/12" : "app-icon-bg"}
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="relative overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-8 shadow-[0_16px_42px_rgba(0,0,0,0.48),0_0_24px_rgba(0,170,255,0.12)]">
+          <div className="relative overflow-hidden rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)] p-8 shadow-[0_16px_42px_rgba(0,0,0,0.48),0_0_24px_rgba(0,170,255,0.12)]">
             <div className="mb-4 flex items-center justify-between">
               <div className="text-lg font-bold tracking-wide text-mist">
                 Category Nodes
               </div>
-              <span className="rounded-full bg-cyan-400/20 px-3 py-1 text-xs text-cyan-200">
+              <span className="app-accent-chip rounded-full px-3 py-1 text-xs">
                 {summary.expenseDifferenceByCategory?.length || 0} Nodes
               </span>
             </div>
@@ -501,7 +501,7 @@ const DashboardPage = () => {
                 summary.expenseDifferenceByCategory.map((d) => (
                   <div
                     key={`${d.category}-${d.categoryId}`}
-                    className="rounded-xl border border-[#4f87df]/40 bg-[rgba(8,20,66,0.78)] p-4 shadow-[0_12px_30px_rgba(0,0,0,0.4)]"
+                    className="rounded-xl border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.78)] p-4 shadow-[0_12px_30px_rgba(0,0,0,0.4)]"
                   >
                     <div className="text-xs uppercase tracking-wider text-mist/80">
                       {d.category || "Uncategorized"}
@@ -533,3 +533,4 @@ const DashboardPage = () => {
 };
 
 export default DashboardPage;
+

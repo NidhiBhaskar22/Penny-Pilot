@@ -19,9 +19,9 @@ export default function IncomeList({ incomes, onEdit, onDelete }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)]">
+    <div className="overflow-hidden rounded-lg border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)]">
       <table className="w-full text-left text-sm text-mist">
-        <thead className="bg-[rgba(7,18,62,0.95)] uppercase tracking-wider text-xs text-mist">
+        <thead className="bg-[rgb(var(--pp-panel-strong-rgb)/0.95)] uppercase tracking-wider text-xs text-mist">
           <tr>
             <th className="px-4 py-3"> </th>
             <th className="px-4 py-3">Details</th>
@@ -36,7 +36,7 @@ export default function IncomeList({ incomes, onEdit, onDelete }) {
           {incomes.map((inc, index) => (
             <tr
               key={inc.id || inc._id}
-              className={index % 2 === 0 ? "bg-[rgba(7,18,62,0.78)]" : "bg-[rgba(10,25,78,0.78)]"}
+              className={index % 2 === 0 ? "bg-[rgb(var(--pp-panel-strong-rgb)/0.78)]" : "bg-[rgb(var(--pp-panel-soft-rgb)/0.78)]"}
             >
               <td className="px-4 py-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sand text-brand-900 font-semibold">
@@ -69,7 +69,7 @@ export default function IncomeList({ incomes, onEdit, onDelete }) {
                   <Edit2 size={16} />
                 </button>
                 <button
-                  className="ml-2 inline-flex items-center justify-center rounded-md bg-red-600/20 p-2 text-red-200"
+                  className="app-danger-icon-button ml-2 inline-flex items-center justify-center rounded-md p-2 transition"
                   onClick={() => onDelete(inc.id || inc._id)}
                   aria-label="Delete"
                 >
@@ -83,3 +83,4 @@ export default function IncomeList({ incomes, onEdit, onDelete }) {
     </div>
   );
 }
+

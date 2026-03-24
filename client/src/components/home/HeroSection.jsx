@@ -39,7 +39,7 @@ export default function HeroSection() {
         />
 
         <motion.div
-          className="relative z-10 mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-[#4f87df]/35 bg-[rgba(8,20,66,0.72)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-mist/75"
+          className="relative z-10 mb-6 inline-flex w-fit items-center gap-2 rounded-full border border-[#4f87df]/35 bg-[rgb(var(--pp-panel-soft-rgb)/0.72)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-mist/75"
           variants={fadeUp}
           custom={0}
         >
@@ -83,7 +83,7 @@ export default function HeroSection() {
           </RouterLink>
           <RouterLink
             to="/dashboard"
-            className="rounded-xl border border-[#4f87df]/35 bg-[rgba(8,20,66,0.55)] px-7 py-3 text-sm font-bold text-mist/90 backdrop-blur transition-transform hover:scale-[1.02]"
+            className="rounded-xl border border-[#4f87df]/35 bg-[rgb(var(--pp-panel-soft-rgb)/0.55)] px-7 py-3 text-sm font-bold text-mist/90 backdrop-blur transition-transform hover:scale-[1.02]"
           >
             See Dashboard
           </RouterLink>
@@ -97,7 +97,7 @@ export default function HeroSection() {
           {["Budgets", "Investments", "EMIs", "Accounts"].map((item, index) => (
             <motion.span
               key={item}
-              className="rounded-full border border-white/10 bg-[rgba(8,20,66,0.44)] px-3 py-1.5"
+              className="rounded-full border border-white/10 bg-[rgb(var(--pp-panel-soft-rgb)/0.44)] px-3 py-1.5"
               animate={{ y: [0, -4, 0] }}
               transition={{
                 duration: 2.8,
@@ -114,3 +114,4 @@ export default function HeroSection() {
     </MotionSection>
   );
 }
+

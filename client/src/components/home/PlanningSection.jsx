@@ -3,7 +3,7 @@ import { planningItems } from "./content";
 export default function PlanningSection() {
   return (
     <section className="mx-auto grid max-w-[1200px] gap-6 px-6 pb-20 md:px-8 lg:grid-cols-[0.95fr_1.05fr]">
-      <div className="rounded-[28px] border border-[#3a63b5]/35 bg-[rgba(6,16,52,0.76)] p-8">
+      <div className="rounded-[28px] border border-[#3a63b5]/35 bg-[rgb(var(--pp-panel-rgb)/0.76)] p-8">
         <div className="text-sm font-bold uppercase tracking-[0.28em] text-peach">
           Smart Planning
         </div>
@@ -21,7 +21,7 @@ export default function PlanningSection() {
         {planningItems.map((item) => (
           <div
             key={item}
-            className="rounded-2xl border border-[#3a63b5]/35 bg-[rgba(7,18,60,0.62)] p-5 text-base font-semibold leading-7 text-mist"
+            className="rounded-2xl border border-[#3a63b5]/35 bg-[rgb(var(--pp-panel-strong-rgb)/0.62)] p-5 text-base font-semibold leading-7 text-mist"
           >
             {item}
           </div>
@@ -30,3 +30,4 @@ export default function PlanningSection() {
     </section>
   );
 }
+

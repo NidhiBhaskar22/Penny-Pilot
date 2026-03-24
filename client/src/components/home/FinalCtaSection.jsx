@@ -5,7 +5,7 @@ export default function FinalCtaSection() {
   return (
     <section className="mx-auto max-w-[1200px] px-6 pb-10 md:px-8">
       <motion.div
-        className="relative overflow-hidden rounded-[32px] border border-teal/30 bg-[linear-gradient(160deg,rgba(12,45,64,0.95),rgba(7,18,60,0.88))] p-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.35)] md:p-12"
+        className="relative overflow-hidden rounded-[32px] border border-teal/30 bg-[linear-gradient(160deg,rgb(var(--pp-panel-soft-rgb)/0.95),rgb(var(--pp-panel-strong-rgb)/0.88))] p-8 text-center shadow-[0_20px_60px_rgba(0,0,0,0.35)] md:p-12"
         initial={{ opacity: 0, y: 24 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
@@ -59,3 +59,4 @@ export default function FinalCtaSection() {
     </section>
   );
 }
+

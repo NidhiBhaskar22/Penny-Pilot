@@ -4,13 +4,14 @@ import axiosClient from "../api/axiosClient";
 
 import ExpenseList from "../components/expense/ExpenseList";
 import ExpenseForm from "../components/expense/ExpenseForm";
+import ConfirmDialog from "../components/ConfirmDialog";
 import AppShell from "../components/layout/AppShell";
 import AnimatedNumber from "../components/dashboard/AnimatedNumber";
 
 function TechCard({ children, ...props }) {
   return (
     <div
-      className="rounded-2xl border border-[#3a63b5]/40 bg-[rgba(4,12,46,0.88)] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.46),0_0_20px_rgba(0,170,255,0.12)]"
+      className="rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.88)] p-6 shadow-[0_16px_40px_rgba(0,0,0,0.46),0_0_20px_rgba(0,170,255,0.12)]"
       {...props}
     >
       {children}
@@ -27,6 +28,7 @@ const ExpensePage = () => {
   const [loading, setLoading] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [q, setQ] = useState("");
@@ -150,6 +152,12 @@ const ExpensePage = () => {
     }
   };
 
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    await handleDelete(pendingDeleteId);
+    setPendingDeleteId(null);
+  };
+
   const total = useMemo(() => Number(summary.totalAmount || 0), [summary.totalAmount]);
   const count = useMemo(() => Number(summary.totalCount || 0), [summary.totalCount]);
   const avg = useMemo(() => Math.round(Number(summary.averageAmount || 0)), [summary.averageAmount]);
@@ -193,7 +201,7 @@ const ExpensePage = () => {
           </TechCard>
         </div>
 
-        <div className="mb-6 rounded-xl border border-[#3a63b5]/30 bg-[rgba(4,12,46,0.55)] p-3">
+        <div className="mb-6 rounded-xl border border-[#3a63b5]/30 bg-[rgb(var(--pp-panel-rgb)/0.55)] p-3">
           <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-mist/70">Filters</div>
           <div className="grid grid-cols-1 gap-2 md:grid-cols-4 xl:grid-cols-8">
             <input
@@ -203,7 +211,7 @@ const ExpensePage = () => {
                 setPage(1);
               }}
               placeholder="Search"
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             />
             <input
               type="month"
@@ -212,7 +220,7 @@ const ExpensePage = () => {
                 setMonth(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             />
             <select
               value={accountId}
@@ -220,7 +228,7 @@ const ExpensePage = () => {
                 setAccountId(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="">Account</option>
               {accounts.map((acc) => (
@@ -235,7 +243,7 @@ const ExpensePage = () => {
                 setCategoryId(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="">Category</option>
               {categories.map((cat) => (
@@ -250,7 +258,7 @@ const ExpensePage = () => {
                 setPaymentMethod(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="">Method</option>
               {METHOD_OPTIONS.map((method) => (
@@ -265,7 +273,7 @@ const ExpensePage = () => {
                 setSortBy(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="spentAt">Date</option>
               <option value="amount">Amount</option>
@@ -278,7 +286,7 @@ const ExpensePage = () => {
                 setSortOrder(e.target.value);
                 setPage(1);
               }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
             >
               <option value="desc">Desc</option>
               <option value="asc">Asc</option>
@@ -290,7 +298,7 @@ const ExpensePage = () => {
                   setPageSize(Number(e.target.value));
                   setPage(1);
                 }}
-                className="w-full rounded-md border border-[#4f87df]/30 bg-[rgba(8,20,66,0.6)] px-3 py-2 text-sm text-mist"
+                className="w-full rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
@@ -322,7 +330,7 @@ const ExpensePage = () => {
         ) : (
           <>
             <TechCard>
-              <ExpenseList expenses={expenses} onEdit={onEdit} onDelete={handleDelete} />
+              <ExpenseList expenses={expenses} onEdit={onEdit} onDelete={setPendingDeleteId} />
             </TechCard>
             <div className="mt-4 flex items-center justify-between text-sm text-mist/80">
               <div>
@@ -351,9 +359,19 @@ const ExpensePage = () => {
         )}
 
         {isOpen && <ExpenseForm isOpen={isOpen} onClose={onFormClose} expense={selectedExpense} />}
+        <ConfirmDialog
+          open={!!pendingDeleteId}
+          title="Delete expense entry?"
+          message="This expense entry will be removed permanently from your records."
+          confirmLabel="Delete"
+          onConfirm={confirmDelete}
+          onCancel={() => setPendingDeleteId(null)}
+        />
       </div>
     </AppShell>
   );
 };
 
 export default ExpensePage;
+
+

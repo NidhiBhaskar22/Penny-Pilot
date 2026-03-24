@@ -1,5 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
+import { useTheme } from "../context/ThemeContext";
 
 const MBox = motion.div;
 
@@ -7,7 +8,8 @@ export default function AmbientTechBg({
   hue = 28,
   intensity = 0.14,
 }) {
-  const isLight = false;
+  const { effectiveTheme } = useTheme();
+  const isLight = effectiveTheme === "light";
 
   const glowA = `hsla(${hue}, 100%, ${isLight ? 60 : 50}%, ${intensity})`;
   const glowB = `hsla(${(hue + 80) % 360}, 100%, ${
@@ -17,11 +19,11 @@ export default function AmbientTechBg({
     isLight ? 65 : 60
   }%, ${intensity})`;
 
-  const bgSolid = "#0b0d12";
-  const gridColor = "rgba(255,255,255,0.06)";
-  const majorGrid = "rgba(255,255,255,0.10)";
-  const scanline = "rgba(255,255,255,0.04)";
-  const noiseOpacity = 0.04;
+  const bgSolid = isLight ? "#f4f8ff" : "#0b0d12";
+  const gridColor = isLight ? "rgba(80,118,188,0.08)" : "rgba(255,255,255,0.06)";
+  const majorGrid = isLight ? "rgba(80,118,188,0.12)" : "rgba(255,255,255,0.10)";
+  const scanline = isLight ? "rgba(80,118,188,0.04)" : "rgba(255,255,255,0.04)";
+  const noiseOpacity = isLight ? 0.02 : 0.04;
   const noiseSvg = `data:image/svg+xml;utf8,${encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" width="140" height="140" viewBox="0 0 140 140">
       <filter id="n">
@@ -50,7 +52,7 @@ export default function AmbientTechBg({
       />
 
       <MBox
-        className="absolute inset-0 opacity-40 mix-blend-screen"
+        className={`absolute inset-0 ${isLight ? "opacity-20 mix-blend-normal" : "opacity-40 mix-blend-screen"}`}
         style={{
           backgroundImage: `repeating-linear-gradient(
             to bottom,
@@ -72,9 +74,13 @@ export default function AmbientTechBg({
             repeating-linear-gradient(0deg, ${gridColor} 0, ${gridColor} 1px, transparent 1px, transparent 24px)
           `,
           maskImage:
-            "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0.9), rgba(0,0,0,0.2))",
+            isLight
+              ? "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0.65), rgba(0,0,0,0.08))"
+              : "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0.9), rgba(0,0,0,0.2))",
           WebkitMaskImage:
-            "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0.9), rgba(0,0,0,0.2))",
+            isLight
+              ? "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0.65), rgba(0,0,0,0.08))"
+              : "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0.9), rgba(0,0,0,0.2))",
         }}
         animate={{
           backgroundPosition: [
@@ -86,16 +92,20 @@ export default function AmbientTechBg({
       />
 
       <MBox
-        className="absolute inset-0 opacity-50"
+        className={`absolute inset-0 ${isLight ? "opacity-30" : "opacity-50"}`}
         style={{
           backgroundImage: `
             repeating-linear-gradient(90deg, ${majorGrid} 0, ${majorGrid} 2px, transparent 2px, transparent 120px),
             repeating-linear-gradient(0deg, ${majorGrid} 0, ${majorGrid} 2px, transparent 2px, transparent 120px)
           `,
           maskImage:
-            "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0.7), rgba(0,0,0,0))",
+            isLight
+              ? "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0.45), rgba(0,0,0,0))"
+              : "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0.7), rgba(0,0,0,0))",
           WebkitMaskImage:
-            "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0.7), rgba(0,0,0,0))",
+            isLight
+              ? "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0.45), rgba(0,0,0,0))"
+              : "radial-gradient(120% 90% at 50% 50%, rgba(0,0,0,0.7), rgba(0,0,0,0))",
         }}
         animate={{
           backgroundPosition: ["0px 0px, 0px 0px", "-60px 0px, 0px -60px"],
@@ -104,7 +114,7 @@ export default function AmbientTechBg({
       />
 
       <div
-        className="absolute -inset-2 pointer-events-none mix-blend-screen"
+        className={`absolute -inset-2 pointer-events-none ${isLight ? "mix-blend-normal" : "mix-blend-screen"}`}
         style={{
           backgroundImage: `url("${noiseSvg}")`,
           opacity: noiseOpacity,
