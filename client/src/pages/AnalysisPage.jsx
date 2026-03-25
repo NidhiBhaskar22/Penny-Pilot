@@ -187,7 +187,7 @@ const formatDate = (value) => {
 };
 
 const filterControlClassName =
-  "h-9 min-w-[140px] rounded-xl border border-[rgb(var(--pp-border-rgb)/0.24)] bg-[rgb(var(--pp-panel-rgb)/0.92)] px-3 text-sm text-mist outline-none transition focus:border-[rgb(var(--pp-brand-400-rgb)/0.55)] focus:bg-[rgb(var(--pp-panel-rgb)/0.96)]";
+  "app-filter-control-select h-9 min-w-[140px] rounded-xl border-[rgb(var(--pp-border-rgb)/0.24)] bg-[rgb(var(--pp-panel-rgb)/0.92)] transition focus:border-[rgb(var(--pp-brand-400-rgb)/0.55)] focus:bg-[rgb(var(--pp-panel-rgb)/0.96)]";
 
 function SectionCard({ className = "", children }) {
   return (
@@ -1109,11 +1109,7 @@ export default function AnalysisPage() {
                         className={`${filterControlClassName} w-full min-w-0`}
                       >
                         {MONTH_OPTIONS.map((month) => (
-                          <option
-                            key={month.value}
-                            value={month.value}
-                            className="bg-white text-slate-900"
-                          >
+                          <option key={month.value} value={month.value}>
                             {month.label}
                           </option>
                         ))}
@@ -1135,7 +1131,7 @@ export default function AnalysisPage() {
                         className={`${filterControlClassName} w-full min-w-0`}
                       >
                         {yearOptions.map((year) => (
-                          <option key={year} value={year} className="bg-white text-slate-900">
+                          <option key={year} value={year}>
                             {year}
                           </option>
                         ))}
@@ -1157,7 +1153,7 @@ export default function AnalysisPage() {
                       className={`${filterControlClassName} w-full min-w-0`}
                     >
                       {yearOptions.map((year) => (
-                        <option key={year} value={year} className="bg-white text-slate-900">
+                        <option key={year} value={year}>
                           {year}
                         </option>
                       ))}
@@ -1177,9 +1173,9 @@ export default function AnalysisPage() {
                       }
                       className={`${filterControlClassName} w-full min-w-0`}
                     >
-                      <option value="" className="bg-white text-slate-900">All Accounts</option>
+                      <option value="">All Accounts</option>
                       {accounts.map((account) => (
-                        <option key={account.id} value={account.id} className="bg-white text-slate-900">
+                        <option key={account.id} value={account.id}>
                           {account.name}
                         </option>
                       ))}

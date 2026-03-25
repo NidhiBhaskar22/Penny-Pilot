@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { useMotionValue, useSpring, useMotionValueEvent } from "framer-motion";
 import axiosClient from "../api/axiosClient";
 
@@ -208,96 +208,117 @@ const LimitsPage = () => {
 
         <div className="mb-6 rounded-xl border border-[#3a63b5]/30 bg-[rgb(var(--pp-panel-rgb)/0.55)] p-3">
           <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-mist/70">Filters</div>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-4 xl:grid-cols-7">
-            <input
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Search"
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            />
-            <select
-              value={scope}
-              onChange={(e) => {
-                setScope(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            >
-              <option value="">Scope</option>
-              <option value="DAILY">Daily</option>
-              <option value="WEEKLY">Weekly</option>
-              <option value="MONTHLY">Monthly</option>
-            </select>
-            <select
-              value={categoryId}
-              onChange={(e) => {
-                setCategoryId(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            >
-              <option value="">Category</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            >
-              <option value="id">Latest</option>
-              <option value="amount">Amount</option>
-              <option value="scope">Scope</option>
-              <option value="month">Month</option>
-              <option value="year">Year</option>
-            </select>
-            <select
-              value={sortOrder}
-              onChange={(e) => {
-                setSortOrder(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            >
-              <option value="desc">Desc</option>
-              <option value="asc">Asc</option>
-            </select>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
-            <button
-              type="button"
-              onClick={() => {
-                setQ("");
-                setScope("");
-                setCategoryId("");
-                setSortBy("id");
-                setSortOrder("desc");
-                setPageSize(DEFAULT_PAGE_SIZE);
-                setPage(1);
-              }}
-              className="rounded-md border border-[#4f87df]/40 px-3 py-2 text-sm font-semibold text-mist/90"
-            >
-              Reset
-            </button>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-10">
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Search</span>
+              <input
+                value={q}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search"
+                className="app-filter-control-input"
+              />
+            </div>
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Scope</span>
+              <select
+                value={scope}
+                onChange={(e) => {
+                  setScope(e.target.value);
+                  setPage(1);
+                }}
+                className="app-filter-control-select"
+              >
+                <option value="">All Scopes</option>
+                <option value="DAILY">Daily</option>
+                <option value="WEEKLY">Weekly</option>
+                <option value="MONTHLY">Monthly</option>
+              </select>
+            </div>
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Category</span>
+              <select
+                value={categoryId}
+                onChange={(e) => {
+                  setCategoryId(e.target.value);
+                  setPage(1);
+                }}
+                className="app-filter-control-select"
+              >
+                <option value="">All Categories</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Sort By</span>
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setPage(1);
+                }}
+                className="app-filter-control-select"
+              >
+                <option value="id">Latest</option>
+                <option value="amount">Amount</option>
+                <option value="scope">Scope</option>
+                <option value="month">Month</option>
+                <option value="year">Year</option>
+              </select>
+            </div>
+            <div className="app-filter-field xl:col-span-1">
+              <span className="app-filter-label">Order</span>
+              <select
+                value={sortOrder}
+                onChange={(e) => {
+                  setSortOrder(e.target.value);
+                  setPage(1);
+                }}
+                className="app-filter-control-select"
+              >
+                <option value="desc">Desc</option>
+                <option value="asc">Asc</option>
+              </select>
+            </div>
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Rows Per Page</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
+                className="app-filter-control-select"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+            <div className="app-filter-field xl:col-span-1">
+              <span className="app-filter-label">Actions</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setQ("");
+                  setScope("");
+                  setCategoryId("");
+                  setSortBy("id");
+                  setSortOrder("desc");
+                  setPageSize(DEFAULT_PAGE_SIZE);
+                  setPage(1);
+                }}
+                className="app-filter-button-secondary px-3"
+              >
+                Reset
+              </button>
+            </div>
           </div>
         </div>
 
@@ -347,7 +368,7 @@ const LimitsPage = () => {
             </div>
             <div className="mt-4 flex items-center justify-between text-sm text-mist/80">
               <div>
-                Page {pagination.page} of {pagination.totalPages || 1} � Total {pagination.total} entries
+                Page {pagination.page} of {pagination.totalPages || 1} • Total {pagination.total} entries
               </div>
               <div className="flex gap-2">
                 <button
@@ -382,4 +403,5 @@ const LimitsPage = () => {
 };
 
 export default LimitsPage;
+
 

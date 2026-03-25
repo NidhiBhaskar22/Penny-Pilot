@@ -30,6 +30,7 @@
       transparent 1px,
       transparent 44px
     );
+  --pp-control-scheme: dark;
 }
 
 :root[data-theme="light"] {
@@ -60,6 +61,7 @@
       transparent 1px,
       transparent 44px
     );
+  --pp-control-scheme: light;
 }
 
 @media (prefers-color-scheme: light) {
@@ -91,6 +93,7 @@
         transparent 1px,
         transparent 44px
       );
+    --pp-control-scheme: light;
   }
 }
 
@@ -144,6 +147,46 @@ h1, h2, h3, .font-bold {
     @apply text-mist placeholder:text-mist/55 focus:border-cyan-300 focus:outline-none;
     border: 1px solid rgb(var(--pp-border-rgb) / 0.35);
     background-color: rgb(var(--pp-panel-soft-rgb) / 0.82);
+  }
+
+  .app-filter-control {
+    @apply min-w-0 rounded-md text-sm text-mist placeholder:text-mist/55 focus:outline-none;
+    height: 2.5rem;
+    border: 1px solid rgb(var(--pp-border-rgb) / 0.3);
+    background-color: rgb(var(--pp-panel-soft-rgb) / 0.6);
+    color-scheme: var(--pp-control-scheme);
+  }
+
+  .app-filter-control-input {
+    @apply app-filter-control px-3;
+  }
+
+  .app-filter-control-select {
+    @apply app-filter-control appearance-none px-3 pr-9;
+    background-image:
+      linear-gradient(45deg, transparent 50%, rgb(var(--pp-mist-rgb) / 0.74) 50%),
+      linear-gradient(135deg, rgb(var(--pp-mist-rgb) / 0.74) 50%, transparent 50%);
+    background-position:
+      calc(100% - 16px) 50%,
+      calc(100% - 11px) 50%;
+    background-repeat: no-repeat;
+    background-size: 5px 5px, 5px 5px;
+  }
+
+  .app-filter-button-secondary {
+    @apply rounded-md text-sm font-semibold text-mist/90;
+    height: 2.5rem;
+    border: 1px solid rgb(var(--pp-border-rgb) / 0.4);
+    background-color: rgb(var(--pp-panel-soft-rgb) / 0.2);
+  }
+
+  .app-filter-field {
+    @apply flex min-w-0 flex-col gap-1;
+  }
+
+  .app-filter-label {
+    @apply text-[10px] font-semibold uppercase tracking-[0.18em];
+    color: rgb(var(--pp-mist-rgb) / 0.58);
   }
 
   .app-table-wrap {
@@ -225,6 +268,59 @@ h1, h2, h3, .font-bold {
   .app-danger-icon-button:hover {
     background-color: rgb(225 29 72 / 0.16);
   }
+}
+
+.app-filter-control-select option {
+  background-color: rgb(var(--pp-panel-strong-rgb));
+  color: rgb(var(--pp-mist-rgb));
+}
+
+.app-filter-control-input::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.15);
+  opacity: 0.78;
+  cursor: pointer;
+}
+
+.app-filter-control-input::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.app-filter-control-input::-webkit-datetime-edit,
+.app-filter-control-input::-webkit-datetime-edit-fields-wrapper,
+.app-filter-control-input::-webkit-datetime-edit-text,
+.app-filter-control-input::-webkit-datetime-edit-month-field,
+.app-filter-control-input::-webkit-datetime-edit-day-field,
+.app-filter-control-input::-webkit-datetime-edit-year-field {
+  color: rgb(var(--pp-mist-rgb));
+}
+
+.app-filter-control-input::-webkit-datetime-edit-month-field:focus,
+.app-filter-control-input::-webkit-datetime-edit-day-field:focus,
+.app-filter-control-input::-webkit-datetime-edit-year-field:focus {
+  background-color: rgb(var(--pp-brand-400-rgb) / 0.22);
+  color: rgb(var(--pp-mist-rgb));
+  border-radius: 0.2rem;
+}
+
+:root[data-theme="light"] .app-filter-control-input::-webkit-calendar-picker-indicator,
+:root:not([data-theme="dark"]) .app-filter-control-input::-webkit-calendar-picker-indicator {
+  filter: none;
+  opacity: 0.72;
+}
+
+:root[data-theme="light"] .app-filter-control-input::-webkit-datetime-edit,
+:root[data-theme="light"] .app-filter-control-input::-webkit-datetime-edit-fields-wrapper,
+:root[data-theme="light"] .app-filter-control-input::-webkit-datetime-edit-text,
+:root[data-theme="light"] .app-filter-control-input::-webkit-datetime-edit-month-field,
+:root[data-theme="light"] .app-filter-control-input::-webkit-datetime-edit-day-field,
+:root[data-theme="light"] .app-filter-control-input::-webkit-datetime-edit-year-field,
+:root:not([data-theme="dark"]) .app-filter-control-input::-webkit-datetime-edit,
+:root:not([data-theme="dark"]) .app-filter-control-input::-webkit-datetime-edit-fields-wrapper,
+:root:not([data-theme="dark"]) .app-filter-control-input::-webkit-datetime-edit-text,
+:root:not([data-theme="dark"]) .app-filter-control-input::-webkit-datetime-edit-month-field,
+:root:not([data-theme="dark"]) .app-filter-control-input::-webkit-datetime-edit-day-field,
+:root:not([data-theme="dark"]) .app-filter-control-input::-webkit-datetime-edit-year-field {
+  color: rgb(var(--pp-mist-rgb));
 }
 
 @keyframes orbs {

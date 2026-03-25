@@ -204,116 +204,144 @@ const IncomePage = () => {
 
         <div className="mb-6 rounded-xl border border-[#3a63b5]/30 bg-[rgb(var(--pp-panel-rgb)/0.55)] p-3">
           <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-mist/70">Filters</div>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-4 xl:grid-cols-8">
-            <input
-              value={q}
-              onChange={(e) => {
-                setQ(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Search"
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            />
-            <input
-              type="month"
-              value={month}
-              onChange={(e) => {
-                setMonth(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            />
-            <input
-              value={source}
-              onChange={(e) => {
-                setSource(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Source"
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            />
-            <select
-              value={accountId}
-              onChange={(e) => {
-                setAccountId(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            >
-              <option value="">Account</option>
-              {accounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={categoryId}
-              onChange={(e) => {
-                setCategoryId(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            >
-              <option value="">Category</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={paymentMethod}
-              onChange={(e) => {
-                setPaymentMethod(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            >
-              <option value="">Method</option>
-              {METHOD_OPTIONS.map((method) => (
-                <option key={method} value={method}>
-                  {method.replaceAll("_", " ")}
-                </option>
-              ))}
-            </select>
-            <select
-              value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value);
-                setPage(1);
-              }}
-              className="rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
-            >
-              <option value="creditedAt">Date</option>
-              <option value="amount">Amount</option>
-              <option value="source">Source</option>
-              <option value="month">Month</option>
-            </select>
-            <div className="flex gap-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-12">
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Search</span>
+              <input
+                value={q}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search"
+                className="app-filter-control-input"
+              />
+            </div>
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Month</span>
+              <input
+                type="month"
+                value={month}
+                onChange={(e) => {
+                  setMonth(e.target.value);
+                  setPage(1);
+                }}
+                className="app-filter-control-input"
+              />
+            </div>
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Source</span>
+              <input
+                value={source}
+                onChange={(e) => {
+                  setSource(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Source"
+                className="app-filter-control-input"
+              />
+            </div>
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Account</span>
+              <select
+                value={accountId}
+                onChange={(e) => {
+                  setAccountId(e.target.value);
+                  setPage(1);
+                }}
+                className="app-filter-control-select"
+              >
+                <option value="">All Accounts</option>
+                {accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Category</span>
+              <select
+                value={categoryId}
+                onChange={(e) => {
+                  setCategoryId(e.target.value);
+                  setPage(1);
+                }}
+                className="app-filter-control-select"
+              >
+                <option value="">All Categories</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Method</span>
+              <select
+                value={paymentMethod}
+                onChange={(e) => {
+                  setPaymentMethod(e.target.value);
+                  setPage(1);
+                }}
+                className="app-filter-control-select"
+              >
+                <option value="">All Methods</option>
+                {METHOD_OPTIONS.map((method) => (
+                  <option key={method} value={method}>
+                    {method.replaceAll("_", " ")}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="app-filter-field xl:col-span-3">
+              <span className="app-filter-label">Sort By</span>
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setPage(1);
+                }}
+                className="app-filter-control-select"
+              >
+                <option value="creditedAt">Date</option>
+                <option value="amount">Amount</option>
+                <option value="source">Source</option>
+                <option value="month">Month</option>
+              </select>
+            </div>
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Order</span>
               <select
                 value={sortOrder}
                 onChange={(e) => {
                   setSortOrder(e.target.value);
                   setPage(1);
                 }}
-                className="w-full rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
+                className="app-filter-control-select"
               >
                 <option value="desc">Desc</option>
                 <option value="asc">Asc</option>
               </select>
+            </div>
+            <div className="app-filter-field xl:col-span-2">
+              <span className="app-filter-label">Rows Per Page</span>
               <select
                 value={pageSize}
                 onChange={(e) => {
                   setPageSize(Number(e.target.value));
                   setPage(1);
                 }}
-                className="w-full rounded-md border border-[#4f87df]/30 bg-[rgb(var(--pp-panel-soft-rgb)/0.6)] px-3 py-2 text-sm text-mist"
+                className="app-filter-control-select"
               >
                 <option value={10}>10</option>
                 <option value={25}>25</option>
                 <option value={50}>50</option>
               </select>
+            </div>
+            <div className="app-filter-field xl:col-span-1">
+              <span className="app-filter-label">Actions</span>
               <button
                 type="button"
                 onClick={() => {
@@ -328,7 +356,7 @@ const IncomePage = () => {
                   setPageSize(DEFAULT_PAGE_SIZE);
                   setPage(1);
                 }}
-                className="rounded-md border border-[#4f87df]/40 px-3 py-2 text-sm font-semibold text-mist/90"
+                className="app-filter-button-secondary px-3"
               >
                 Reset
               </button>

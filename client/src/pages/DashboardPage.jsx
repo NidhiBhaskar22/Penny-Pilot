@@ -338,7 +338,7 @@ const DashboardPage = () => {
               {draftFilters.timeframe === "monthly" && (
                 <input
                   type="month"
-                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  className="app-filter-control-input h-8 border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5"
                   value={draftFilters.anchorMonth}
                   onChange={(e) =>
                     setDraftFilters((prev) => ({
@@ -351,7 +351,7 @@ const DashboardPage = () => {
               {draftFilters.timeframe === "weekly" && (
                 <input
                   type="week"
-                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  className="app-filter-control-input h-8 border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5"
                   value={draftFilters.anchorWeek}
                   onChange={(e) =>
                     setDraftFilters((prev) => ({
@@ -364,7 +364,7 @@ const DashboardPage = () => {
               {draftFilters.timeframe === "daily" && (
                 <input
                   type="date"
-                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  className="app-filter-control-input h-8 border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5"
                   value={draftFilters.anchorDate}
                   onChange={(e) =>
                     setDraftFilters((prev) => ({
@@ -379,7 +379,7 @@ const DashboardPage = () => {
                   type="number"
                   min="2000"
                   max="2100"
-                  className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                  className="app-filter-control-input h-8 border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5"
                   value={draftFilters.anchorYear}
                   onChange={(e) =>
                     setDraftFilters((prev) => ({
@@ -391,7 +391,7 @@ const DashboardPage = () => {
                 />
               )}
               <select
-                className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                className="app-filter-control-select h-8 border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5"
                 value={draftFilters.accountId}
                 onChange={(e) =>
                   setDraftFilters((prev) => ({ ...prev, accountId: e.target.value }))
@@ -405,7 +405,7 @@ const DashboardPage = () => {
                 ))}
               </select>
               <select
-                className="h-8 rounded-md border border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5 text-sm text-mist focus:border-cyan-300 focus:outline-none"
+                className="app-filter-control-select h-8 border-[#4f87df]/25 bg-[rgb(var(--pp-panel-rgb)/0.55)] px-2.5"
                 value={draftFilters.methodType}
                 onChange={(e) =>
                   setDraftFilters((prev) => ({ ...prev, methodType: e.target.value }))
@@ -420,14 +420,14 @@ const DashboardPage = () => {
               <button
                 type="button"
                 onClick={handleCurrentAnchor}
-                className="h-8 rounded-md border border-[#4f87df]/25 px-2.5 text-sm text-mist/80"
+                className="app-filter-button-secondary h-8 px-2.5 text-mist/80"
               >
                 Today
               </button>
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="h-8 rounded-md border border-[#4f87df]/25 px-2.5 text-sm text-mist/80"
+                className="app-filter-button-secondary h-8 px-2.5 text-mist/80"
               >
                 Reset
               </button>
