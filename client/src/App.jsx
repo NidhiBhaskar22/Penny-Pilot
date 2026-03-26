@@ -10,6 +10,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Header from "./components/Header";
+import SplashScreen from "./components/SplashScreen";
 
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -113,6 +114,21 @@ const AppRoutes = () => {
 
 function App() {
   const Router = import.meta.env.PROD ? HashRouter : BrowserRouter;
+  const [showSplash, setShowSplash] = React.useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return !window.sessionStorage.getItem("pp-splash-shown");
+  });
+
+  const handleSplashComplete = React.useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem("pp-splash-shown", "1");
+    }
+
+    setShowSplash(false);
+  }, []);
 
   return (
     <ThemeProvider>
@@ -120,6 +136,7 @@ function App() {
         <Router
           future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
         >
+          {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
           <AppRoutes />
         </Router>
       </AuthProvider>
