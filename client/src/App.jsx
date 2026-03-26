@@ -1,5 +1,11 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  HashRouter,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -106,6 +112,8 @@ const AppRoutes = () => {
 };
 
 function App() {
+  const Router = import.meta.env.PROD ? HashRouter : BrowserRouter;
+
   return (
     <ThemeProvider>
       <AuthProvider>
