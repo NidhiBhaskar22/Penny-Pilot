@@ -1,124 +1,197 @@
 # Penny Pilot
 
-**A personal finance operating system** — one place to track income, expenses, investments, and spending limits across multiple accounts and payment methods, with AI-generated insight on top of the numbers.
+Penny Pilot is a personal finance operating system for tracking income, expenses, investments, and spending limits across multiple accounts and payment methods. It adds structured insight on top of the raw numbers so the app can answer not just "what happened" but "does it matter?"
 
-Most budgeting apps stop at "you spent ₹12,000 this month." Penny Pilot goes further: it correlates income stability, spending anomalies, investment concentration, and burn rate into a single risk forecast, and lets an LLM narrate what the numbers actually mean — scoped per account, per payment method, per timeframe.
+## Snapshot
 
----
+| Area             | Summary                                                      |
+|------------------|--------------------------------------------------------------|
+| Product          | Personal finance dashboard with auth, budgets, limits, and insight |
+| Frontend         | React 19, Vite, Tailwind CSS, React Router, Framer Motion, Recharts |
+| Backend          | Node.js, Express 5, Prisma ORM, PostgreSQL, JWT, bcrypt      |
+| External services| Google OAuth, Groq, Financial Modeling Prep, AMFI India      |
+| Core idea        | Model money as accounts and payment methods                  |
 
-## The problem
+## The Problem
 
-Personal finance data is naturally fragmented — a salary account, a UPI wallet, a couple of credit cards, a demat account, all telling a different slice of the same story. Spreadsheets don't scale across that, and most budgeting apps only show *what happened*, not *whether it matters*.
+Most budgeting tools flatten finance into a transaction list. That works for simple expense tracking, but it breaks down when money flows through:
 
-Penny Pilot's core bet: **model money as a graph of accounts and payment methods, not a flat list of transactions** — then compute insight (anomalies, concentration, runway) on top of that graph instead of asking the user to read a spreadsheet.
+- salary accounts
+- UPI wallets
+- credit cards
+- investment accounts
+- shared or split expenses
 
----
+That flattening hides relationships between accounts, payment methods, and time-based behavior. The result is a dashboard that can count money but cannot explain it.
+
+Penny Pilot is built around a different assumption:
+
+| Traditional budgeting app | Penny Pilot                          |
+|---------------------------|--------------------------------------|
+| Flat transaction list     | Account-centric model                |
+| Generic summaries         | Per-account and per-method analysis  |
+| Passive reporting         | Limit enforcement and anomaly signals|
+| Freeform AI narration     | Data-constrained insight generation  |
+
+## What It Does
+
+| Capability         | What it provides                                      |
+|-------------------|--------------------------------------------------------|
+| Income tracking   | Salary and non-salary inflows with account scoping     |
+| Expense tracking  | Category-aware spending with payment-method context    |
+| Investment tracking | Ledger-based holdings and market-linked analysis    |
+| Limit enforcement | Guardrails for daily, weekly, and monthly spend limits |
+| Auth              | Email/password plus Google OAuth                       |
+| Insight layer     | Risk, concentration, and behavior summaries           |
 
 ## Architecture
 
-![Architecture diagram: React client through Express middleware and controllers into PostgreSQL, with services fanning out to Google OAuth, Financial Modeling Prep, AMFI India, and Groq](docs/diagrams/architecture.svg)
+![Architecture diagram](docs/diagrams/architecture.svg)
 
-**Frontend:** React 19, Vite, Tailwind CSS, React Router, Framer Motion, Recharts, Axios
-**Backend:** Node.js, Express 5, Prisma ORM, PostgreSQL, JWT, bcrypt
-**External integrations:** Google OAuth, Groq (LLM insight generation), Financial Modeling Prep (live equity/ETF quotes), AMFI India (mutual fund NAVs, scraped + cached)
+### System Layers
 
----
+| Layer       | Role                                           |
+|-------------|------------------------------------------------|
+| Client      | React UI, auth state, route protection, API calls |
+| Middleware  | Auth checks and expense limit enforcement      |
+| Controllers | Request routing for each resource domain       |
+| Services    | Business rules and integrations                |
+| Database    | PostgreSQL via Prisma                          |
+| External APIs | Google OAuth, Groq, FMP, AMFI                |
 
-## Data model
+### Request Flow
 
-The schema is built around **accounts as the hub** — every income, expense, and investment transaction is scoped to an account and a payment method, which is what makes per-account / per-method filtering on the dashboard possible instead of just per-user totals.
+![Request lifecycle diagram](docs/diagrams/request-lifecycle.svg)
 
-![Entity-relationship diagram: User owns Accounts, which receive Income, pay Expenses, and trade InvestmentTransactions against Instruments; Categories tag Income, Expenses, and Limits](docs/diagrams/data-model.svg)
+Every mutating request goes through the same path:
 
-24 Prisma models in total — the diagram above shows the load-bearing core (accounts, transactions, limits, instruments). The rest of the schema covers EMIs/loans, split expenses, insurance, and goals as append-only ledgers off the same `User`.
+1. Client sends a request.
+2. Middleware validates auth and business rules.
+3. Controller delegates to the relevant service.
+4. Service performs the actual read/write work.
+5. Errors are normalized through a centralized handler.
 
----
+This keeps policy checks in one place instead of duplicating them across endpoints.
 
-## Request lifecycle
+## Data Model
 
-Every mutating request flows through the same pipeline, so business rules (like limit enforcement) are enforced once, centrally — not re-implemented per endpoint.
+![Data model diagram](docs/diagrams/data-model.svg)
 
-![Sequence diagram: a POST /api/expenses request flowing through authMiddleware, checkExpenseLimit, the controller, and the service layer, with error paths forwarding to the centralized error handler](docs/diagrams/request-lifecycle.svg)
+The schema is organized around `User` as the owner and `Account` as the center of day-to-day money movement. Income, expenses, and investments are all connected through account and payment-method context.
 
----
+| Core entity | Why it matters                                  |
+|-------------|--------------------------------------------------|
+| User        | Owning identity for all finance data             |
+| Account     | Primary grouping for balances and transactions   |
+| Category    | Classification for income and expense flows      |
+| Investment  | Asset-level record for deposits and exposure     |
+| Instrument  | Normalized security or fund metadata             |
+| Session     | Refresh-token rotation and login persistence     |
 
-## Auth: refresh-token rotation with reuse detection
+The schema also covers:
 
-Access tokens are short-lived (15 min). Refresh tokens are long-lived, **hashed at rest**, rotated on every use, and checked for reuse — if a refresh token is presented twice, every session for that user is revoked immediately (the standard defense against a leaked refresh token being replayed).
+- loans and EMIs
+- split expenses
+- insurance
+- tax records
+- goals and contributions
+- balances and session history
 
-![Sequence diagram: login creates a session with a hashed refresh token; refresh rotates the hash and extends expiry; a hash mismatch on refresh revokes every session for that user](docs/diagrams/auth-rotation.svg)
+## Authentication
 
-The Axios client mirrors this on the frontend: a single in-flight refresh promise (so concurrent 401s don't trigger a refresh storm), automatic retry of the original request, and a hard redirect to `/login` if refresh itself fails.
+![Auth rotation diagram](docs/diagrams/auth-rotation.svg)
 
----
+### Auth Model
 
-## What's actually interesting under the hood
+| Piece         | Behavior                                      |
+|---------------|-----------------------------------------------|
+| Access token  | Short-lived, used for API requests            |
+| Refresh token | Long-lived, hashed at rest, rotated on use    |
+| Session       | Stored in PostgreSQL and invalidated on reuse |
+| Google sign-in| ID token verification against the client ID   |
 
-- **Decimal-safe money math.** Every currency value is a Prisma `Decimal`, not a float — deliberately, to avoid the classic `0.1 + 0.2 !== 0.3` class of bug in financial calculations.
-- **Scenario-aware dashboard queries.** The advanced dashboard endpoint accepts an `accountId` and `methodType` filter and re-derives every aggregate (income, expense, investment cash flow, category breakdown, anomaly detection) scoped to that slice — without a second set of endpoints.
-- **BUY/SELL-aware portfolio accounting.** Investment holdings are computed from a full transaction ledger (not a mutable "current position" row), using weighted-average cost basis so realized/unrealized P&L stay correct across partial sells.
-- **Two live market-data sources, one interface.** Equities/ETFs come from Financial Modeling Prep; Indian mutual funds come from a scraped-and-cached AMFI NAV feed — both normalized into the same `Instrument`/`InstrumentQuote` shape so the rest of the app doesn't care which source a holding came from.
-- **LLM insight is data-constrained, not freeform.** The prompt sent to Groq is a structured JSON payload (already-computed anomalies, stability scores, concentration metrics) with an explicit "do not invent values" instruction — the model narrates pre-computed facts rather than hallucinating analysis.
+### Why the rotation matters
 
----
+If a refresh token is reused, the whole session family for that user is revoked. That makes token theft materially harder to exploit.
 
-## Project structure
+## Trade-offs
 
-```
-client/               React + Vite frontend
-  src/pages/           route-level views (Dashboard, Expense, Income, Investment, Limits, Analysis...)
-  src/components/      shared UI, grouped by feature
-  src/context/         auth + theme providers
-  src/api/              axios client with refresh interceptor
+| Trade-off               | Benefit                      | Cost                              |
+|-------------------------|------------------------------|-----------------------------------|
+| Account-centric model   | Better insight and filtering | More complex schema and queries   |
+| Refresh-token rotation  | Stronger security posture    | More session bookkeeping          |
+| Centralized middleware  | Consistent policy checks     | More shared infrastructure        |
+| External market data    | Live and normalized data     | Dependency on third-party APIs    |
+| Data-constrained prompts| Lower hallucination risk     | Less freeform narration           |
+| Prisma migrations       | Repeatable schema evolution  | Operational discipline in deploys |
 
-server/                Express API
-  src/controllers/      14 resource domains (account, expense, income, investment, dashboard...)
-  src/services/         business logic + external API integrations
-  src/middleware/        auth, limit enforcement, centralized error handling
-  prisma/schema.prisma   24-model schema, 9 migrations
+## Metrics
 
-docs/diagrams/         Mermaid sources (.mmd) + rendered SVGs used above
-```
+### Repository Metrics
 
-Diagrams are pre-rendered to SVG so they display in any Markdown viewer. To regenerate after changing a `.mmd` source:
+| Metric             | Value |
+|--------------------|-------|
+| Prisma models      | 24    |
+| Resource domains   | 14    |
+| Database migrations| 9     |
+| Rendered diagrams  | 4     |
 
-```bash
-npx @mermaid-js/mermaid-cli -i docs/diagrams/<name>.mmd -o docs/diagrams/<name>.svg -c docs/diagrams/mermaid-config.json -b white --scale 2
-```
+### Product Metrics to Watch
 
----
+| Metric                         | What it tells you                     |
+|--------------------------------|----------------------------------------|
+| Login success rate             | Whether auth and OAuth are stable      |
+| Refresh failure rate           | Whether sessions are rotating cleanly  |
+| Expense-limit violations blocked | Whether guardrails are working       |
+| Dashboard request latency      | Whether aggregation is staying fast    |
+| Market-data refresh success    | Whether external feeds are healthy     |
+| Insight generation success     | Whether LLM and upstream data are available |
 
-## Getting started
+## Repository Layout
 
-### Prerequisites
+| Path                 | Purpose                                                |
+|----------------------|--------------------------------------------------------|
+| `client/`            | React frontend                                         |
+| `client/src/pages/`  | Route-level screens for dashboard and finance modules  |
+| `client/src/components/` | Shared UI and feature components                  |
+| `client/src/context/` | Auth and theme state                                   |
+| `client/src/api/`    | Axios client and refresh logic                         |
+| `server/`            | Express backend                                        |
+| `server/src/controllers/` | Resource endpoints                               |
+| `server/src/services/` | Business logic and integrations                      |
+| `server/src/middleware/` | Auth, limits, and error handling                   |
+| `server/prisma/`     | Schema and migrations                                  |
+| `docs/diagrams/`     | Mermaid sources and rendered diagrams                  |
 
-- Node.js 18+
-- PostgreSQL
+## Deployment Notes
 
-### Backend
+| Area               | Note                                                     |
+|--------------------|----------------------------------------------------------|
+| Backend runtime    | Express app serving the API under `/api`                 |
+| Database           | PostgreSQL managed through Prisma migrations             |
+| Frontend deployment| Static Render service                                    |
+| OAuth              | Google client ID must match between frontend and backend |
+| Hosting behavior   | Production routing uses a hash-based client router       |
 
-```bash
-cd server
-npm install
-cp .env.example .env   # DATABASE_URL, JWT_SECRET, GOOGLE_CLIENT_ID, FMP_API_KEY, GROQ_API_KEY
-npx prisma migrate deploy
-npm run dev
-```
+## Visual Summary
 
-### Frontend
+| Question                              | Diagram |
+|---------------------------------------|---|
+| How does a request move through the system? | [Request lifecycle](docs/diagrams/request-lifecycle.svg) |
+| How is auth kept secure?              | [Auth rotation](docs/diagrams/auth-rotation.svg) |
+| How are entities connected?           | [Data model](docs/diagrams/data-model.svg) |
+| What is the overall system shape?     | [Architecture](docs/diagrams/architecture.svg) |
 
-```bash
-cd client
-npm install
-cp .env.example .env    # VITE_GOOGLE_CLIENT_ID
-npm run dev
-```
+## Design Principles
 
-The client expects the API at `http://localhost:3001/api` by default (configurable via `VITE_API_URL`).
+| Principle              | Implementation                                 |
+|------------------------|------------------------------------------------|
+| Clarity over noise     | Finance data is grouped by account, method, and period |
+| Safety over convenience| Sessions rotate and reuse is detected          |
+| Insight over reporting | Dashboards compute meaning, not just totals    |
+| Integration over duplication | External APIs are normalized into shared shapes |
+| Maintainability over shortcuts | Business rules live in services and middleware |
 
-### Seeding sample data
+## Diagram Sources
 
-```bash
-cd server
-npm run seed:sample
-```
+The rendered diagrams in `docs/diagrams/*.svg` are generated from the Mermaid sources in the same folder. Update the `.mmd` source and regenerate the SVGs when the architecture changes.
