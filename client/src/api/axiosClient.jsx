@@ -20,8 +20,8 @@ function clearAuthState() {
 }
 
 function redirectToLogin() {
-  if (window.location.pathname !== "/login") {
-    window.location.href = "/login";
+  if (window.location.hash !== "#/login") {
+    window.location.replace(`${window.location.origin}/#/login`);
   }
 }
 
