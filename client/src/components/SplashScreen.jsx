@@ -208,11 +208,11 @@ const SplashScreen = ({ onComplete }) => {
 
         <div ref={brandRef} className="splash-brand">
           <div className="splash-brand__mark-wrap">
-            <img src={logoMark} alt="PennyPilot logo" className="splash-brand__mark" />
+            <img src={logoMark} alt="Penny Pilot logo" className="splash-brand__mark" />
           </div>
           <div className="splash-brand__copy">
             <div className="splash-brand__eyebrow">Finance Command Center</div>
-            <div className="splash-brand__name">PennyPilot</div>
+            <div className="splash-brand__name">Penny Pilot</div>
           </div>
         </div>
       </div>

@@ -1,7 +1,6 @@
 const { asyncHandler, ApiError } = require("../middleware/errorMiddleware");
 const categoryService = require("../services/categoryService");
-
-const getUserId = (req) => req.user?.userId ?? req.user?.id;
+const { getUserId } = require("../utils/requestUtils");
 
 exports.listCategories = asyncHandler(async (req, res) => {
   const userId = getUserId(req);

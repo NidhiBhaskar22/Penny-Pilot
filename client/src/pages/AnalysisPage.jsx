@@ -28,6 +28,7 @@ import {
   YAxis,
 } from "recharts";
 import axiosClient from "../api/axiosClient";
+import { formatCurrency as formatCurrencyINR } from "../utils/currency";
 import { useTheme } from "../context/ThemeContext";
 import AppShell from "../components/layout/AppShell";
 
@@ -172,12 +173,7 @@ const formatCompactNumber = (value) =>
     maximumFractionDigits: 1,
   }).format(Number(value || 0));
 
-const formatCurrency = (value) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(Number(value || 0));
+const formatCurrency = (value) => formatCurrencyINR(value, { decimals: false });
 
 const formatDate = (value) => {
   if (!value) return "Unknown date";

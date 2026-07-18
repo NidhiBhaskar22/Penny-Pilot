@@ -14,7 +14,7 @@ const orbitItems = [
   },
   {
     label: overviewStats[1].label,
-    points: ["Goals", "Limits", "EMIs", "Loans"],
+    points: ["Limits", "AI Insights"],
     className:
       "left-[364px] top-[12px] h-[214px] w-[268px] rounded-[999px]",
     glowClass:
@@ -46,7 +46,7 @@ export default function OverviewSection() {
             One home for the money story you are actually living.
           </h2>
           <p className="mt-5 max-w-xl text-base leading-7 text-mist/72">
-            Penny-Pilot is designed for people who need more than a ledger. It
+            Penny Pilot is designed for people who need more than a ledger. It
             helps you understand where money is now, where it is headed, and
             which habits are shaping the outcome.
           </p>

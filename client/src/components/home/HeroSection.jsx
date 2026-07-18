@@ -65,9 +65,9 @@ export default function HeroSection() {
           variants={fadeUp}
           custom={2}
         >
-          Penny-Pilot gives you one place to monitor spending, balances,
-          investments, loans, EMIs, categories, and goals so your money
-          decisions stop depending on memory.
+          Penny Pilot gives you one place to monitor spending, balances,
+          investments, categories, and limits so your money decisions
+          stop depending on memory.
         </motion.p>
 
         <motion.div
@@ -94,7 +94,7 @@ export default function HeroSection() {
           variants={fadeUp}
           custom={4}
         >
-          {["Budgets", "Investments", "EMIs", "Accounts"].map((item, index) => (
+          {["Budgets", "Investments", "Analysis", "Accounts"].map((item, index) => (
             <motion.span
               key={item}
               className="rounded-full border border-white/10 bg-[rgb(var(--pp-panel-soft-rgb)/0.44)] px-3 py-1.5"

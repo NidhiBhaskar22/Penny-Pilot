@@ -4,7 +4,7 @@ import { AuthContext } from "../context/AuthContext";
 
 const slides = [
   {
-    title: "Welcome to PennyPilot",
+    title: "Welcome to Penny Pilot",
     body: "Track income, expenses, and investments effortlessly.",
   },
   {

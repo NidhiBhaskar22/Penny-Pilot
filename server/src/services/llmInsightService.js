@@ -85,71 +85,6 @@ function safeParseInsight(content) {
   }
 }
 
-// async function generateWithOllama(summary) {
-//   const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
-//     method: "POST",
-//     headers: {
-//       "Content-Type": "application/json",
-//     },
-//     body: JSON.stringify({
-//       model: OLLAMA_MODEL,
-//       prompt: buildPrompt(summary),
-//       stream: false,
-//       format: "json",
-//     }),
-//   });
-
-//   if (!response.ok) {
-//     const text = await response.text();
-//     const error = new Error(`Ollama request failed: ${response.status} ${text}`);
-//     error.statusCode = response.status;
-//     throw error;
-//   }
-
-//   const data = await response.json();
-//   return safeParseInsight(data?.response || "");
-// }
-
-// async function generateWithOpenAI(summary) {
-//   if (!OPENAI_API_KEY) {
-//     const error = new Error("OPENAI_API_KEY is not configured");
-//     error.statusCode = 500;
-//     throw error;
-//   }
-
-//   const response = await fetch(`${OPENAI_BASE_URL}/responses`, {
-//     method: "POST",
-//     headers: {
-//       "Content-Type": "application/json",
-//       Authorization: `Bearer ${OPENAI_API_KEY}`,
-//     },
-//     body: JSON.stringify({
-//       model: OPENAI_MODEL,
-//       input: buildPrompt(summary),
-//       text: {
-//         format: {
-//           type: "json_object",
-//         },
-//       },
-//     }),
-//   });
-
-//   if (!response.ok) {
-//     const text = await response.text();
-//     const error = new Error(`OpenAI request failed: ${response.status} ${text}`);
-//     error.statusCode = response.status;
-//     throw error;
-//   }
-
-//   const data = await response.json();
-//   const content =
-//     data?.output_text ||
-//     data?.output?.[0]?.content?.find((item) => item.type === "output_text")?.text ||
-//     "";
-
-//   return safeParseInsight(content);
-// }
-
 async function generateWithGroq(summary) {
   if (!GROQ_API_KEY) {
     const error = new Error("GROQ_API_KEY is not configured");
@@ -196,13 +131,12 @@ async function generateWithGroq(summary) {
 }
 
 async function generateSummary(summary) {
-  // if (LLM_PROVIDER === "ollama") {
-  //   return generateWithOllama(summary);
-  // }
   if (LLM_PROVIDER === "groq") {
     return generateWithGroq(summary);
   }
-  return generateWithOpenAI(summary);
+  const error = new Error(`Unsupported LLM_PROVIDER: "${LLM_PROVIDER}"`);
+  error.statusCode = 500;
+  throw error;
 }
 
 module.exports = {

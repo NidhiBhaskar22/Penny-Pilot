@@ -103,7 +103,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         <div className={`px-3 pb-3 pt-4 ${collapsed ? "flex justify-center" : "flex items-center justify-between"}`}>
           {!collapsed ? (
             <RouterLink to="/" className="text-sm font-semibold tracking-wide text-mist">
-              PennyPilot
+              Penny Pilot
             </RouterLink>
           ) : null}
           <button

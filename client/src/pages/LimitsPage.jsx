@@ -1,9 +1,10 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
-import { useMotionValue, useSpring, useMotionValueEvent } from "framer-motion";
 import axiosClient from "../api/axiosClient";
 
 import LimitsForm from "../components/limits/LimitsForm";
 import AppShell from "../components/layout/AppShell";
+import AnimatedNumber from "../components/dashboard/AnimatedNumber";
+import { formatCurrency } from "../utils/currency";
 
 function TechCard({ children, ...props }) {
   return (
@@ -14,22 +15,6 @@ function TechCard({ children, ...props }) {
       {children}
     </div>
   );
-}
-
-function AnimatedNumber({ value = 0, fmt = (v) => v.toLocaleString() }) {
-  const mv = useMotionValue(0);
-  const spring = useSpring(mv, { damping: 20, stiffness: 120 });
-  const [display, setDisplay] = React.useState(0);
-
-  React.useEffect(() => {
-    mv.set(Number(value || 0));
-  }, [value, mv]);
-
-  useMotionValueEvent(spring, "change", (v) => {
-    setDisplay(Math.round(v));
-  });
-
-  return <>{fmt(display)}</>;
 }
 
 function formatLimitWindow(limit) {
@@ -184,25 +169,25 @@ const LimitsPage = () => {
           <TechCard>
             <div className="mb-1 text-xs font-bold uppercase tracking-widest text-sand">Total Monthly</div>
             <div className="text-2xl font-bold text-mist">
-              <AnimatedNumber value={totalMonthly} />
+              <AnimatedNumber value={totalMonthly} format={(v) => formatCurrency(v)} />
             </div>
-            <div className="mt-2 text-sm text-mist/70">INR across all categories</div>
+            <div className="mt-2 text-sm text-mist/70">Across all categories</div>
           </TechCard>
 
           <TechCard>
             <div className="mb-1 text-xs font-bold uppercase tracking-widest text-sand">Total Weekly</div>
             <div className="text-2xl font-bold text-mist">
-              <AnimatedNumber value={totalWeekly} />
+              <AnimatedNumber value={totalWeekly} format={(v) => formatCurrency(v)} />
             </div>
-            <div className="mt-2 text-sm text-mist/70">INR across all categories</div>
+            <div className="mt-2 text-sm text-mist/70">Across all categories</div>
           </TechCard>
 
           <TechCard>
             <div className="mb-1 text-xs font-bold uppercase tracking-widest text-sand">Total Daily</div>
             <div className="text-2xl font-bold text-mist">
-              <AnimatedNumber value={totalDaily} />
+              <AnimatedNumber value={totalDaily} format={(v) => formatCurrency(v)} />
             </div>
-            <div className="mt-2 text-sm text-mist/70">INR across all categories</div>
+            <div className="mt-2 text-sm text-mist/70">Across all categories</div>
           </TechCard>
         </div>
 
@@ -350,7 +335,7 @@ const LimitsPage = () => {
                       <td className="px-4 py-4 font-semibold text-mist">{limit.category?.name || "General"}</td>
                       <td className="px-4 py-4 font-semibold text-peach">{limit.scope || "-"}</td>
                       <td className="px-4 py-4 font-semibold text-mist">
-                        INR {Number(limit.amount || 0).toLocaleString("en-IN")}
+                        {formatCurrency(limit.amount)}
                       </td>
                       <td className="px-4 py-4 font-semibold text-mist">{formatLimitWindow(limit)}</td>
                       <td className="px-4 py-4 text-right">

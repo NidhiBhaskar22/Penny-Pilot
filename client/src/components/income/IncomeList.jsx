@@ -1,16 +1,10 @@
 import React from "react";
 import { Edit2, Trash2 } from "lucide-react";
+import { formatCurrency } from "../../utils/currency";
+import { formatDate } from "../../utils/formatDate";
 
 function fmtDate(inc) {
-  const raw = inc?.creditedAt ?? inc?.date ?? inc?.createdAt;
-  if (!raw) return "-";
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDate(inc?.creditedAt ?? inc?.date ?? inc?.createdAt);
 }
 
 export default function IncomeList({ incomes, onEdit, onDelete }) {
@@ -51,7 +45,7 @@ export default function IncomeList({ incomes, onEdit, onDelete }) {
                 <div className="font-semibold text-mist">{inc.tag || "-"}</div>
               </td>
               <td className="px-4 py-4 font-semibold text-mist">
-                INR {Number(inc.amount || 0).toLocaleString("en-IN")}
+                {formatCurrency(inc.amount)}
               </td>
               <td className="px-4 py-4 font-semibold text-mist">
                 {inc.account?.name || "-"}

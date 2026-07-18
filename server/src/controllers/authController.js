@@ -1,8 +1,7 @@
 // src/controllers/authController.js
 const { asyncHandler, ApiError } = require("../middleware/errorMiddleware");
 const authService = require("../services/authService");
-
-const getUserId = (req) => req.user?.userId ?? req.user?.id;
+const { getUserId } = require("../utils/requestUtils");
 
 // POST /api/auth/register
 exports.register = asyncHandler(async (req, res) => {

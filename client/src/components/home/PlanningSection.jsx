@@ -11,9 +11,9 @@ export default function PlanningSection() {
           Don&apos;t just record money. Direct it.
         </h2>
         <p className="mt-4 text-base leading-7 text-mist/72">
-          Goals, limits, loans, and EMIs belong in the same conversation.
-          Penny-Pilot keeps future obligations close to present behavior so
-          planning stays grounded in reality.
+          Limits, investments, and AI-driven insights belong in the same
+          conversation. Penny Pilot keeps your spending patterns close to
+          your financial goals so planning stays grounded in reality.
         </p>
       </div>
 

@@ -47,7 +47,7 @@ export default function SecuritySection() {
               Personal finance data should stay personal.
             </h2>
             <p className="mt-6 max-w-xl text-base leading-8 text-mist/72">
-              Penny-Pilot uses account-based access and authenticated routes so
+              Penny Pilot uses account-based access and authenticated routes so
               your financial records remain scoped to your session and your
               account.
             </p>

@@ -8,6 +8,7 @@ import axiosClient from "../api/axiosClient";
 import TimeframeSelector from "../components/dashboard/TimeframeSelector";
 import AppShell from "../components/layout/AppShell";
 import AnimatedNumber from "../components/dashboard/AnimatedNumber";
+import { formatCurrency } from "../utils/currency";
 
 const MotionBox = motion.div;
 const dashboardFade = {
@@ -67,7 +68,7 @@ const KpiCard = ({ label, value, badge }) => (
       </span>
     </div>
     <div className="text-3xl font-bold text-mist">
-      <AnimatedNumber value={value} />
+      <AnimatedNumber value={value} format={(v) => formatCurrency(v)} />
     </div>
     <div className="mt-2 text-[10px] uppercase tracking-widest text-mist/60">
       Active Signal
@@ -83,7 +84,7 @@ const InlineStat = ({ title, value, icon: Icon, accentClass, iconBgClass }) => (
     <div className="min-w-0">
       <div className="text-[11px] uppercase tracking-[0.22em] text-mist/58">{title}</div>
       <div className={`truncate text-xl font-bold ${accentClass}`}>
-        {Number(value ?? 0).toLocaleString("en-IN")}
+        {formatCurrency(value)}
       </div>
     </div>
   </div>
@@ -91,11 +92,13 @@ const InlineStat = ({ title, value, icon: Icon, accentClass, iconBgClass }) => (
 
 const DashboardPage = () => {
   const defaultFilters = React.useMemo(() => buildDefaultFilters(), []);
+  const autoAlignedMonthRef = React.useRef(false);
   const [draftFilters, setDraftFilters] = useState(defaultFilters);
   const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState(null);
+  const [autoAlignNote, setAutoAlignNote] = useState("");
 
   const buildAnchor = useCallback(() => {
     switch (appliedFilters.timeframe) {
@@ -152,15 +155,69 @@ const DashboardPage = () => {
           },
         });
 
+        const totalIncome = Number(data?.totalIncome ?? data?.totals?.income ?? 0);
+        const totalExpense = Number(
+          data?.totalExpense ?? data?.totalExpenses ?? data?.totals?.expense ?? 0
+        );
+        const totalInvestment = Number(
+          data?.totalInvestment ??
+            data?.totalInvestments ??
+            data?.investmentCashFlow?.outflow ??
+            data?.totals?.investment ??
+            0
+        );
         const merged = {
           ...data,
           label: data?.label || "",
-          totalIncome: Number(data?.totalIncome ?? 0),
-          totalExpense: Number(data?.totalExpense ?? 0),
-          totalInvestment: Number(data?.totalInvestment ?? 0),
+          totalIncome,
+          totalExpense,
+          totalInvestment,
+          netFlow: Number(
+            data?.netFlow ?? totalIncome - totalExpense - totalInvestment
+          ),
+          balances: {
+            current: Number(data?.balances?.current ?? 0),
+            lastWeek: Number(data?.balances?.lastWeek ?? 0),
+            lastMonth: Number(data?.balances?.lastMonth ?? 0),
+          },
+          expenseDifferenceByCategory: Array.isArray(
+            data?.expenseDifferenceByCategory
+          )
+            ? data.expenseDifferenceByCategory
+            : [],
         };
 
-        if (!cancelled) setSummary(merged);
+        if (!cancelled) {
+          const shouldAutoAlignMonth =
+            !autoAlignedMonthRef.current &&
+            appliedFilters.timeframe === "monthly" &&
+            !appliedFilters.accountId &&
+            !appliedFilters.methodType &&
+            Number(merged.totalIncome || 0) === 0 &&
+            Number(merged.totalExpense || 0) === 0 &&
+            Number(merged.totalInvestment || 0) === 0 &&
+            merged.latestActivityMonth &&
+            merged.latestActivityMonth !== appliedFilters.anchorMonth;
+
+          if (shouldAutoAlignMonth) {
+            autoAlignedMonthRef.current = true;
+            setAutoAlignNote(
+              `Showing latest activity month (${merged.latestActivityMonth}) because ${appliedFilters.anchorMonth} has no records.`
+            );
+            setDraftFilters((prev) => ({
+              ...prev,
+              timeframe: "monthly",
+              anchorMonth: merged.latestActivityMonth,
+            }));
+            setAppliedFilters((prev) => ({
+              ...prev,
+              timeframe: "monthly",
+              anchorMonth: merged.latestActivityMonth,
+            }));
+          }
+
+          setSummary(merged);
+        }
       } catch (error) {
         console.error("Failed to load dashboard summary", error);
         if (!cancelled) {
@@ -171,6 +228,7 @@ const DashboardPage = () => {
                 totalIncome: 0,
                 totalExpense: 0,
                 totalInvestment: 0,
+                netFlow: 0,
                 balances: { current: 0, lastWeek: 0, lastMonth: 0 },
                 expenseDifferenceByCategory: [],
                 insights: {
@@ -215,7 +273,9 @@ const DashboardPage = () => {
     );
   }
 
-  const netFlow = summary.totalIncome - summary.totalExpense;
+  const netFlow = Number(
+    summary.netFlow ?? summary.totalIncome - summary.totalExpense - summary.totalInvestment
+  );
 
   const bankAccounts = accounts;
   const hasPendingChanges =
@@ -284,6 +344,12 @@ const DashboardPage = () => {
         />
 
         <MotionBox variants={stagger} initial="hidden" animate="visible">
+          {autoAlignNote ? (
+            <div className="mb-4 rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-rgb)/0.7)] px-4 py-2 text-sm text-mist/80">
+              {autoAlignNote}
+            </div>
+          ) : null}
+
           <div className="relative mb-8 overflow-hidden rounded-2xl border border-[#3a63b5]/45 bg-gradient-to-br from-[rgb(var(--pp-panel-rgb)/0.94)] to-[rgb(var(--pp-panel-soft-rgb)/0.9)] p-6 shadow-[0_18px_45px_rgba(0,0,0,0.56),0_0_30px_rgba(0,190,255,0.2)]">
             <div
               className="absolute inset-0 opacity-90"

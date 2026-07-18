@@ -3,7 +3,7 @@ import { Mail, GithubIcon, LinkedinIcon } from "lucide-react";
 export default function HomeFooter() {
   return (
     <footer className="mx-auto flex max-w-[1200px] flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-mist/55 md:flex-row md:px-8">
-      <div className="font-semibold uppercase tracking-[0.18em]">Penny-Pilot</div>
+      <div className="font-semibold uppercase tracking-[0.18em]">Penny Pilot</div>
       <div className="flex flex-col items-center gap-1 text-center md:items-end md:text-right">
         <a
           href="mailto:bhaskarnidhi2206@gmail.com"

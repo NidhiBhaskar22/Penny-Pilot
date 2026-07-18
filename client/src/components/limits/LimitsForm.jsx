@@ -33,7 +33,6 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
     { value: 11, label: "November" },
     { value: 12, label: "December" },
   ];
-  const optionStyle = { backgroundColor: "#0e2a4a", color: "#e8f3ff" };
   const selectedMonthLabel =
     monthOptions.find((m) => Number(month) === m.value)?.label || "Choose month";
 
@@ -165,7 +164,7 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl border border-teal bg-brand-900 p-6 text-mist shadow-xl">
+      <div className="relative w-full max-w-lg rounded-2xl border border-[#3a63b5]/40 bg-[rgb(var(--pp-panel-rgb)/0.95)] p-6 text-mist shadow-[0_16px_40px_rgba(0,0,0,0.5)]">
         <div className="mb-4 text-lg font-semibold">
           {limits ? "Edit Limits" : "Set Limits"}
         </div>
@@ -187,15 +186,15 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
                 }
                 setCategoryId(next);
               }}
-              className="w-full rounded-lg border border-sand bg-teal/30 px-3 py-2 text-mist focus:border-peach focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
             >
-              <option style={optionStyle} value="">Select category</option>
+              <option value="">Select category</option>
               {categories.map((c) => (
-                <option style={optionStyle} key={c.id} value={c.id}>
+                <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
-              <option style={optionStyle} value="__add_new__">+ Add New Category</option>
+              <option value="__add_new__">+ Add New Category</option>
             </select>
           </div>
           <div>
@@ -203,11 +202,11 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
             <select
               value={scope}
               onChange={(e) => setScope(e.target.value)}
-              className="w-full rounded-lg border border-sand bg-teal/30 px-3 py-2 text-mist focus:border-peach focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
             >
-              <option style={optionStyle} value="MONTHLY">Monthly</option>
-              <option style={optionStyle} value="WEEKLY">Weekly</option>
-              <option style={optionStyle} value="DAILY">Daily</option>
+              <option value="MONTHLY">Monthly</option>
+              <option value="WEEKLY">Weekly</option>
+              <option value="DAILY">Daily</option>
             </select>
           </div>
           <div>
@@ -217,7 +216,7 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               min={0}
-              className="w-full rounded-lg border border-sand bg-teal/30 px-3 py-2 text-mist focus:border-peach focus:outline-none"
+              className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
             />
           </div>
           {scope === "MONTHLY" && (
@@ -231,11 +230,11 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
                     setMonthMode(next);
                     setShowMonthPicker(next === "SELECT");
                   }}
-                  className="w-full rounded-lg border border-sand bg-teal/30 px-3 py-2 text-mist focus:border-peach focus:outline-none"
+                  className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
                 >
-                  <option style={optionStyle} value="CURRENT">Current Month</option>
-                  <option style={optionStyle} value="ALL">All Months</option>
-                  <option style={optionStyle} value="SELECT">Select Month</option>
+                  <option value="CURRENT">Current Month</option>
+                  <option value="ALL">All Months</option>
+                  <option value="SELECT">Select Month</option>
                 </select>
               </div>
               {monthMode === "SELECT" && (
@@ -245,7 +244,7 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
                     <button
                       type="button"
                       onClick={() => setShowMonthPicker(true)}
-                      className="rounded-lg border border-sand bg-teal/30 px-4 py-2 text-sm font-semibold text-mist hover:border-peach"
+                      className="rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-4 py-2 text-sm font-semibold text-mist hover:border-cyan-300"
                     >
                       Choose Month
                     </button>
@@ -267,7 +266,7 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
                   min={1}
                   max={5}
                   placeholder="Week number"
-                  className="w-full rounded-lg border border-sand bg-teal/30 px-3 py-2 text-mist focus:border-peach focus:outline-none"
+                  className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
                 />
               </div>
               <div>
@@ -279,7 +278,7 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
                   min={2000}
                   max={2100}
                   placeholder="e.g. 2026"
-                  className="w-full rounded-lg border border-sand bg-teal/30 px-3 py-2 text-mist focus:border-peach focus:outline-none"
+                  className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
                 />
               </div>
             </>
@@ -292,7 +291,7 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
                 type="date"
                 value={day}
                 onChange={(e) => setDay(e.target.value)}
-                className="w-full rounded-lg border border-sand bg-teal/30 px-3 py-2 text-mist focus:border-peach focus:outline-none"
+                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
               />
             </div>
           )}
@@ -309,14 +308,14 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
           <button
             type="submit"
             form="limits-form"
-            className="rounded-lg bg-teal px-4 py-2 text-sm font-semibold text-mist"
+            className="rounded-lg bg-[#22c0ff] px-4 py-2 text-sm font-semibold text-[#03102e]"
           >
             {limits ? "Update" : "Set"}
           </button>
         </div>
         {showMonthPicker ? (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/60 p-4">
-            <div className="w-full max-w-md rounded-xl border border-teal bg-brand-900 p-4">
+            <div className="w-full max-w-md rounded-xl border border-[#3a63b5]/45 bg-[rgb(var(--pp-panel-rgb)/0.98)] p-4">
               <div className="mb-3 text-base font-semibold text-mist">Choose Month</div>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {monthOptions.map((m) => {
@@ -332,7 +331,7 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
                       className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${
                         active
                           ? "border-cyan-300 bg-cyan-500/25 text-cyan-100"
-                          : "border-sand bg-teal/30 text-mist hover:border-peach"
+                          : "border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] text-mist hover:border-cyan-300"
                       }`}
                     >
                       {m.label}
@@ -354,14 +353,14 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
         ) : null}
         {showCategoryModal ? (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-2xl bg-black/60 p-4">
-            <div className="w-full max-w-sm rounded-xl border border-teal bg-brand-900 p-4">
+            <div className="w-full max-w-sm rounded-xl border border-[#3a63b5]/45 bg-[rgb(var(--pp-panel-rgb)/0.98)] p-4">
               <div className="mb-3 text-base font-semibold text-mist">Add Category</div>
               <input
                 type="text"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
                 placeholder="Category name"
-                className="w-full rounded-lg border border-sand bg-teal/30 px-3 py-2 text-mist focus:border-peach focus:outline-none"
+                className="w-full rounded-lg border border-[#4f87df]/40 bg-[rgb(var(--pp-panel-soft-rgb)/0.82)] px-3 py-2 text-mist placeholder:text-mist/70 focus:border-cyan-300 focus:outline-none"
               />
               <div className="mt-4 flex justify-end gap-2">
                 <button
@@ -377,7 +376,7 @@ const LimitsForm = ({ isOpen, onClose, limits }) => {
                 </button>
                 <button
                   type="button"
-                  className="rounded-lg bg-teal px-4 py-2 text-sm font-semibold text-mist disabled:opacity-60"
+                  className="rounded-lg bg-[#22c0ff] px-4 py-2 text-sm font-semibold text-[#03102e] disabled:opacity-60"
                   onClick={createCategory}
                   disabled={creatingCategory}
                 >

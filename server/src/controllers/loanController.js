@@ -1,509 +1,169 @@
 const { applyBalanceChange } = require("../utils/balanceUtils");
-const { monthKeyIST, getWeekOfMonth } = require("../utils/datKeys"); // ✅ Add this line
 const prisma = require("../config/prismaClient");
-
-const getUserId = (req) => req.user?.userId ?? req.user?.id;
-
-/**
- * Create a split expense
- * - Creates the base Expense
- * - Creates SplitExpense records for each participant
- * - Adjusts balances: payer gets credited, others debited
- */
-const createSplitExpense = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const { amount, spentAt, splits, accountId, categoryId } = req.body;
-    if (!amount || !spentAt || !accountId || !categoryId) {
-      return res.status(400).json({
-        message: "amount, spentAt, accountId, categoryId are required",
-      });
-    }
-    if (!Array.isArray(splits) || splits.length === 0) {
-      return res.status(400).json({ message: "splits are required" });
-    }
-
-    const month = monthKeyIST(new Date(spentAt));
-    const week = getWeekOfMonth(new Date(spentAt));
-
-    // Transaction: expense + splits + balances
-    const result = await prisma.$transaction(async (tx) => {
-      const expense = await tx.expense.create({
-        data: {
-          userId,
-          amount,
-          spentAt: new Date(spentAt),
-          month,
-          week,
-          accountId,
-          categoryId,
-        },
-      });
-
-      for (const split of splits) {
-        const {
-          userId: participantId,
-          amountOwed,
-          amountPaid,
-          paidByUserId,
-        } = split;
-
-        await tx.splitExpense.create({
-          data: {
-            expenseId: expense.id,
-            userId: participantId,
-            amountOwed,
-            amountPaid,
-            paidByUserId,
-          },
-        });
-
-        // Balance logic:
-        // If this participant did NOT pay their share -> debit them
-        if (paidByUserId !== participantId) {
-          await applyBalanceChange(participantId, -amountOwed);
-          await applyBalanceChange(paidByUserId, amountOwed);
-        }
-      }
-
-      return expense;
-    });
-
-    res.json(result);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to create split expense", details: err.message });
-  }
-};
-
-/**
- * Update a split expense
- * - Roll back old balance changes
- * - Apply new split distribution
- */
-const updateSplitExpense = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const { id } = req.params;
-    const { splits } = req.body;
-
-    const expense = await prisma.expense.findFirst({
-      where: { id: parseInt(id), userId },
-      select: { id: true },
-    });
-    if (!expense)
-      return res.status(404).json({ error: "Split expense not found" });
-
-    const existing = await prisma.splitExpense.findMany({
-      where: { expenseId: parseInt(id) },
-    });
-    if (!existing.length)
-      return res.status(404).json({ error: "Split expense not found" });
-
-    // Transaction: rollback + reapply
-    await prisma.$transaction(async (tx) => {
-      // rollback old balance impacts
-      for (const split of existing) {
-        if (split.paidByUserId !== split.userId) {
-          await applyBalanceChange(split.userId, split.amountOwed); // refund participant
-          await applyBalanceChange(split.paidByUserId, -split.amountOwed); // remove from payer
-        }
-      }
-
-      // delete old splits
-      await tx.splitExpense.deleteMany({ where: { expenseId: parseInt(id) } });
-
-      // add new splits
-      for (const split of splits) {
-        const {
-          userId: participantId,
-          amountOwed,
-          amountPaid,
-          paidByUserId,
-        } = split;
-
-        await tx.splitExpense.create({
-          data: {
-            expenseId: parseInt(id),
-            userId: participantId,
-            amountOwed,
-            amountPaid,
-            paidByUserId,
-          },
-        });
-
-        if (paidByUserId !== participantId) {
-          await applyBalanceChange(participantId, -amountOwed);
-          await applyBalanceChange(paidByUserId, amountOwed);
-        }
-      }
-    });
-
-    res.json({ message: "Split expense updated successfully" });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to update split expense", details: err.message });
-  }
-};
-
-/**
- * Create Money Lent
- */
-const createMoneyLent = async (req, res) => {
-  try {
-    const lenderId = getUserId(req);
-    if (!lenderId) return res.status(401).json({ message: "Unauthorized" });
-
-    const { borrower, amount, purpose, dueDate } = req.body;
-
-    const moneyLent = await prisma.moneyLent.create({
-      data: {
-        lenderId,
-        borrower,
-        amount,
-        purpose,
-        dueDate: dueDate ? new Date(dueDate) : null,
-      },
-    });
-
-    await applyBalanceChange(lenderId, -amount);
-
-    res.json(moneyLent);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to create money lent", details: err.message });
-  }
-};
-
-/**
- * Update Money Lent
- */
-const updateMoneyLent = async (req, res) => {
-  try {
-    const lenderId = getUserId(req);
-    if (!lenderId) return res.status(401).json({ message: "Unauthorized" });
-
-    const { id } = req.params;
-    const { amount, ...rest } = req.body;
-
-    const existing = await prisma.moneyLent.findUnique({
-      where: { id: parseInt(id) },
-    });
-    if (!existing)
-      return res.status(404).json({ error: "Money lent record not found" });
-    if (existing.lenderId !== lenderId)
-      return res.status(403).json({ error: "Forbidden" });
-
-    const diff = amount !== undefined ? amount - existing.amount : 0;
-
-    const updated = await prisma.$transaction(async (tx) => {
-      const ml = await tx.moneyLent.update({
-        where: { id: parseInt(id) },
-        data: { ...rest, amount },
-      });
-
-      if (diff !== 0) {
-        await applyBalanceChange(existing.lenderId, -diff);
-      }
-
-      return ml;
-    });
-
-    res.json(updated);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to update money lent", details: err.message });
-  }
-};
-
-/**
- * Create Money Borrowed
- */
-const createMoneyBorrowed = async (req, res) => {
-  try {
-    const borrowerId = getUserId(req);
-    if (!borrowerId) return res.status(401).json({ message: "Unauthorized" });
-
-    const { lender, amount, purpose, dueDate } = req.body;
-
-    const moneyBorrowed = await prisma.moneyBorrowed.create({
-      data: {
-        borrowerId,
-        lender,
-        amount,
-        purpose,
-        dueDate: dueDate ? new Date(dueDate) : null,
-      },
-    });
-
-    await applyBalanceChange(borrowerId, amount);
-
-    res.json(moneyBorrowed);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to create money borrowed", details: err.message });
-  }
-};
-
-/**
- * Update Money Borrowed
- */
-const updateMoneyBorrowed = async (req, res) => {
-  try {
-    const borrowerId = getUserId(req);
-    if (!borrowerId) return res.status(401).json({ message: "Unauthorized" });
-
-    const { id } = req.params;
-    const { amount, ...rest } = req.body;
-
-    const existing = await prisma.moneyBorrowed.findUnique({
-      where: { id: parseInt(id) },
-    });
-    if (!existing)
-      return res.status(404).json({ error: "Money borrowed record not found" });
-    if (existing.borrowerId !== borrowerId)
-      return res.status(403).json({ error: "Forbidden" });
-
-    const diff = amount !== undefined ? amount - existing.amount : 0;
-
-    const updated = await prisma.$transaction(async (tx) => {
-      const mb = await tx.moneyBorrowed.update({
-        where: { id: parseInt(id) },
-        data: { ...rest, amount },
-      });
-
-      if (diff !== 0) {
-        await applyBalanceChange(existing.borrowerId, diff);
-      }
-
-      return mb;
-    });
-
-    res.json(updated);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to update money borrowed", details: err.message });
-  }
-};
+const { asyncHandler, ApiError } = require("../middleware/errorMiddleware");
+const { getUserId } = require("../utils/requestUtils");
 
 /**
  * Create a loan
  */
-const createLoan = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+const createLoan = asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) throw new ApiError(401, "Unauthorized");
 
-    const { amount, tenureMonths, startDate, interestRate, description } =
-      req.body;
+  const { amount, tenureMonths, startDate, interestRate, description } =
+    req.body;
 
-    if (!amount || amount <= 0)
-      return res.status(400).json({ message: "Invalid amount" });
-    if (!tenureMonths || tenureMonths <= 0)
-      return res.status(400).json({ message: "Invalid tenureMonths" });
-    if (!startDate)
-      return res.status(400).json({ message: "startDate required" });
+  if (!amount || amount <= 0) throw new ApiError(400, "Invalid amount");
+  if (!tenureMonths || tenureMonths <= 0) throw new ApiError(400, "Invalid tenureMonths");
+  if (!startDate) throw new ApiError(400, "startDate required");
 
-    const loan = await prisma.loan.create({
-      data: {
-        userId,
-        amount,
-        tenureMonths,
-        startDate: new Date(startDate),
-        interestRate,
-        outstanding: amount,
-        description,
-      },
-    });
+  const loan = await prisma.loan.create({
+    data: {
+      userId,
+      amount,
+      tenureMonths,
+      startDate: new Date(startDate),
+      interestRate,
+      outstanding: amount,
+      description,
+    },
+  });
 
-    res.json(loan);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to create loan", error });
-  }
-};
+  res.json(loan);
+});
 
 // Update loan details
-const updateLoan = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+const updateLoan = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = getUserId(req);
+  if (!userId) throw new ApiError(401, "Unauthorized");
 
-    const existing = await prisma.loan.findFirst({
-      where: { id: parseInt(id), userId },
-    });
-    if (!existing) return res.status(404).json({ error: "Loan not found" });
+  const existing = await prisma.loan.findFirst({
+    where: { id: parseInt(id), userId },
+  });
+  if (!existing) throw new ApiError(404, "Loan not found");
 
-    const loan = await prisma.loan.update({
-      where: { id: parseInt(id) },
-      data: req.body,
-    });
-    res.json(loan);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to update loan", details: err.message });
-  }
-};
+  const loan = await prisma.loan.update({
+    where: { id: parseInt(id) },
+    data: req.body,
+  });
+  res.json(loan);
+});
 
 // Delete a loan
-const deleteLoan = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+const deleteLoan = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const userId = getUserId(req);
+  if (!userId) throw new ApiError(401, "Unauthorized");
 
-    const existing = await prisma.loan.findFirst({
-      where: { id: parseInt(id), userId },
-    });
-    if (!existing) return res.status(404).json({ error: "Loan not found" });
+  const existing = await prisma.loan.findFirst({
+    where: { id: parseInt(id), userId },
+  });
+  if (!existing) throw new ApiError(404, "Loan not found");
 
-    await prisma.loan.delete({ where: { id: parseInt(id) } });
-    res.json({ message: "Loan deleted successfully" });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to delete loan", details: err.message });
-  }
-};
+  await prisma.loan.delete({ where: { id: parseInt(id) } });
+  res.json({ message: "Loan deleted successfully" });
+});
 
 // Make a payment on a loan installment
-const makeLoanPayment = async (req, res) => {
-  try {
-    const { loanId, amount } = req.body;
+const makeLoanPayment = asyncHandler(async (req, res) => {
+  const { loanId, amount } = req.body;
 
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+  const userId = getUserId(req);
+  if (!userId) throw new ApiError(401, "Unauthorized");
 
-    const loan = await prisma.loan.findFirst({
-      where: { id: loanId, userId },
-    });
-    if (!loan) return res.status(404).json({ error: "Loan not found" });
+  const loan = await prisma.loan.findFirst({
+    where: { id: loanId, userId },
+  });
+  if (!loan) throw new ApiError(404, "Loan not found");
 
-    if (amount > loan.outstanding) {
-      return res
-        .status(400)
-        .json({ error: "Payment exceeds outstanding amount" });
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-      const updatedLoan = await tx.loan.update({
-        where: { id: loanId },
-        data: { outstanding: { decrement: amount } },
-      });
-
-      const payment = await tx.loanPayment.create({
-        data: { loanId, amount },
-      });
-
-      await applyBalanceChange(loan.userId, -amount);
-
-      return { updatedLoan, payment };
-    });
-
-    res.json(result);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to make loan payment", details: err.message });
+  if (amount > loan.outstanding) {
+    throw new ApiError(400, "Payment exceeds outstanding amount");
   }
-};
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedLoan = await tx.loan.update({
+      where: { id: loanId },
+      data: { outstanding: { decrement: amount } },
+    });
+
+    const payment = await tx.loanPayment.create({
+      data: { loanId, amount },
+    });
+
+    await applyBalanceChange(loan.userId, -amount);
+
+    return { updatedLoan, payment };
+  });
+
+  res.json(result);
+});
 
 // Update a loan payment
-const updateLoanPayment = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { amount } = req.body;
+const updateLoanPayment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { amount } = req.body;
 
-    const existing = await prisma.loanPayment.findUnique({
+  const existing = await prisma.loanPayment.findUnique({
+    where: { id: parseInt(id) },
+    include: { loan: true },
+  });
+
+  if (!existing) throw new ApiError(404, "Payment not found");
+  const userId = getUserId(req);
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  if (existing.loan.userId !== userId) throw new ApiError(403, "Forbidden");
+
+  const diff = amount - existing.amount;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const payment = await tx.loanPayment.update({
       where: { id: parseInt(id) },
-      include: { loan: true },
+      data: { amount },
     });
 
-    if (!existing) return res.status(404).json({ error: "Payment not found" });
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    if (existing.loan.userId !== userId)
-      return res.status(403).json({ error: "Forbidden" });
-
-    const diff = amount - existing.amount;
-
-    const updated = await prisma.$transaction(async (tx) => {
-      const payment = await tx.loanPayment.update({
-        where: { id: parseInt(id) },
-        data: { amount },
-      });
-
-      await tx.loan.update({
-        where: { id: existing.loanId },
-        data: { outstanding: { decrement: diff } },
-      });
-
-      await applyBalanceChange(existing.loan.userId, -diff);
-
-      return payment;
+    await tx.loan.update({
+      where: { id: existing.loanId },
+      data: { outstanding: { decrement: diff } },
     });
 
-    res.json(updated);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to update loan payment", details: err.message });
-  }
-};
+    await applyBalanceChange(existing.loan.userId, -diff);
+
+    return payment;
+  });
+
+  res.json(updated);
+});
 
 // Delete a loan payment
-const deleteLoanPayment = async (req, res) => {
-  try {
-    const { id } = req.params;
+const deleteLoanPayment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-    const existing = await prisma.loanPayment.findUnique({
-      where: { id: parseInt(id) },
-      include: { loan: true },
+  const existing = await prisma.loanPayment.findUnique({
+    where: { id: parseInt(id) },
+    include: { loan: true },
+  });
+
+  if (!existing) throw new ApiError(404, "Payment not found");
+  const userId = getUserId(req);
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  if (existing.loan.userId !== userId) throw new ApiError(403, "Forbidden");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.loanPayment.delete({ where: { id: parseInt(id) } });
+
+    await tx.loan.update({
+      where: { id: existing.loanId },
+      data: { outstanding: { increment: existing.amount } },
     });
 
-    if (!existing) return res.status(404).json({ error: "Payment not found" });
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    if (existing.loan.userId !== userId)
-      return res.status(403).json({ error: "Forbidden" });
+    await applyBalanceChange(existing.loan.userId, existing.amount);
+  });
 
-    await prisma.$transaction(async (tx) => {
-      await tx.loanPayment.delete({ where: { id: parseInt(id) } });
-
-      await tx.loan.update({
-        where: { id: existing.loanId },
-        data: { outstanding: { increment: existing.amount } },
-      });
-
-      await applyBalanceChange(existing.loan.userId, existing.amount);
-    });
-
-    res.json({ message: "Loan payment deleted successfully" });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to delete loan payment", details: err.message });
-  }
-};
+  res.json({ message: "Loan payment deleted successfully" });
+});
 
 module.exports = {
-  createSplitExpense,
-  updateSplitExpense,
-  createMoneyLent,
-  updateMoneyLent,
-  createMoneyBorrowed,
-  updateMoneyBorrowed,
   createLoan,
   updateLoan,
   deleteLoan,

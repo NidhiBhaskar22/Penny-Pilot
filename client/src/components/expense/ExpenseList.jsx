@@ -1,17 +1,11 @@
 import React from "react";
 import { Edit2, Trash2 } from "lucide-react";
+import { formatCurrency } from "../../utils/currency";
+import { formatDate } from "../../utils/formatDate";
 
 // robust date pick + format (spentAt | date | createdAt)
 function fmtDate(exp) {
-  const raw = exp?.spentAt ?? exp?.date ?? exp?.createdAt;
-  if (!raw) return "-";
-  const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return formatDate(exp?.spentAt ?? exp?.date ?? exp?.createdAt);
 }
 
 export default function ExpenseList({ expenses, onEdit, onDelete }) {
@@ -59,7 +53,7 @@ export default function ExpenseList({ expenses, onEdit, onDelete }) {
                 ) : null}
               </td>
               <td className="px-4 py-4 font-semibold text-mist">
-                INR {Number(exp.amount || 0).toLocaleString("en-IN")}
+                {formatCurrency(exp.amount)}
               </td>
               <td className="px-4 py-4 font-semibold text-mist">
                 {exp.account?.name || "-"}

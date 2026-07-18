@@ -1,0 +1,28 @@
+sequenceDiagram
+    participant C as Client
+    participant A as authMiddleware
+    participant L as checkExpenseLimit
+    participant Ctrl as Controller
+    participant Svc as Service / Prisma
+    participant DB as PostgreSQL
+    participant EH as errorHandler
+
+    C->>A: POST /api/expenses (JWT)
+    A->>A: verify JWT, confirm session
+    alt invalid or expired token
+        A-->>C: 401 Unauthorized
+    end
+    A->>L: next()
+    L->>DB: sum spend for day/week/month scope
+    alt would exceed configured limit
+        L-->>C: 400 alert with exceeded scopes
+    end
+    L->>Ctrl: next()
+    Ctrl->>Ctrl: throw ApiError on validation failure
+    Ctrl->>Svc: business logic
+    Svc->>DB: write, transaction-wrapped where balances change
+    DB-->>Svc: result
+    Svc-->>Ctrl: result
+    Ctrl-->>C: 200 or 201 JSON
+    Ctrl->>EH: thrown ApiError forwarded via next(err)
+    EH-->>C: message and details with correct status code

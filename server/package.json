@@ -1,16 +1,15 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
     "seed:sample": "node scripts/seed-sample-data.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["finance", "expense-tracker", "prisma", "express"],
   "license": "ISC",
-  "description": "",
+  "description": "Express + Prisma API for Penny Pilot, a personal finance dashboard.",
   "dependencies": {
     "@prisma/client": "^6.15.0",
     "bcryptjs": "^3.0.2",

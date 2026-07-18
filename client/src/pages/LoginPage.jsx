@@ -2,7 +2,7 @@
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
-import bgAuth from "../assests/bg_auth.jpg";
+import bgAuth from "../assets/bg_auth.jpg";
 
 const LoginPage = () => {
   const { login, loginWithGoogle } = useContext(AuthContext);
@@ -109,16 +109,6 @@ const LoginPage = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-ink/70">
-                  <label className="inline-flex items-center gap-2">
-                    <input type="checkbox" className="h-4 w-4 rounded border-black/20" />
-                    Remember me
-                  </label>
-                  <button type="button" className="text-ink/70">
-                    Forgot Password
-                  </button>
                 </div>
 
                 <button

@@ -3,7 +3,6 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoute = require('./routes/authRoute');
-const authenticateToken = require('./middleware/authMiddleware');
 const incomeRoute = require('./routes/incomeRoute');
 const expenseRoute = require('./routes/expenseRoute');
 const investmentRoute = require('./routes/investmentRoute');
@@ -41,19 +40,6 @@ app.use('/api/accounts', accountRoute);
 app.use('/api/categories', categoryRoute);
 app.use('/api/instruments', instrumentRoute);
 app.use('/api/analysis', analysisRoute);
-
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res
-    .status(500)
-    .json({ message: "Internal Server Error", error: err.message });
-});
-
-
-app.get('/api/protected', authenticateToken, (req, res) => {
-    res.json({ message: 'This is a protected route', user: req.user });
-});
-
 
 app.use(errorHandler.errorHandler);
 

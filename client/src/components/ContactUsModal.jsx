@@ -32,7 +32,7 @@ export default function ContactUsModal({ open, onClose }) {
               <div className="text-[11px] uppercase tracking-[0.28em] text-sky-200/70">
                 Contact Us
               </div>
-              <h2 className="mt-2 text-2xl font-semibold text-mist">Reach out to PennyPilot</h2>
+              <h2 className="mt-2 text-2xl font-semibold text-mist">Reach out to Penny Pilot</h2>
               <p className="mt-2 text-sm leading-6 text-mist/72">
                 Contact details are shown below.
               </p>

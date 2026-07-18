@@ -1,7 +1,8 @@
 const prisma = require("../config/prismaClient");
 const { monthKeyIST, getMonthDateRange } = require("../utils/datKeys");
+const { asyncHandler, ApiError } = require("../middleware/errorMiddleware");
+const { getUserId } = require("../utils/requestUtils");
 
-const getUserId = (req) => req.user?.userId ?? req.user?.id;
 const METHOD_TYPES = new Set(["NET_BANKING", "UPI", "CASH", "DEBIT_CARD", "CREDIT_CARD"]);
 
 const normalizeType = (value) =>
@@ -890,422 +891,498 @@ async function getScenarioAccountIds(userId, accountId) {
 }
 
 // -------------------- Normal Dashboard --------------------
-const getNormalDashboard = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+const getNormalDashboard = asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) throw new ApiError(401, "Unauthorized");
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ where: { id: userId } });
 
-    // Totals
-    const totalIncome = await prisma.income.aggregate({
-      where: { userId },
-      _sum: { amount: true },
-    });
+  // Totals
+  const totalIncome = await prisma.income.aggregate({
+    where: { userId },
+    _sum: { amount: true },
+  });
 
-    const totalExpense = await prisma.expense.aggregate({
-      where: { userId },
-      _sum: { amount: true },
-    });
+  const totalExpense = await prisma.expense.aggregate({
+    where: { userId },
+    _sum: { amount: true },
+  });
 
-    const totalLoanPayments = await prisma.loanPayment.aggregate({
-      where: { loan: { userId } },
-      _sum: { amount: true },
-    });
+  const totalLoanPayments = await prisma.loanPayment.aggregate({
+    where: { loan: { userId } },
+    _sum: { amount: true },
+  });
 
-    const totalInsurance = await prisma.insurance.aggregate({
-      where: { userId },
-      _sum: { premium: true },
-    });
+  const totalInsurance = await prisma.insurance.aggregate({
+    where: { userId },
+    _sum: { premium: true },
+  });
 
-    const totalInvestments = await prisma.investment.aggregate({
-      where: { userId },
-      _sum: { amount: true },
-    });
+  const totalInvestments = await prisma.investment.aggregate({
+    where: { userId },
+    _sum: { amount: true },
+  });
 
-    const totalSavings =
-      (totalIncome._sum.amount || 0) -
-      ((totalExpense._sum.amount || 0) +
-        (totalLoanPayments._sum.amount || 0) +
-        (totalInsurance._sum.premium || 0));
+  const normIncome = Number(totalIncome._sum.amount || 0);
+  const normExpense = Number(totalExpense._sum.amount || 0);
+  const normLoanPayments = Number(totalLoanPayments._sum.amount || 0);
+  const normInsurance = Number(totalInsurance._sum.premium || 0);
+  const normInvestments = Number(totalInvestments._sum.amount || 0);
+  const normTotalExpenses = normExpense + normLoanPayments + normInsurance;
+  const totalSavings = normIncome - normTotalExpenses;
 
-    // Category-wise spend (month & year graphs)
-    const categoryWiseRaw = await prisma.expense.groupBy({
-      by: ["categoryId", "month"],
-      where: { userId },
-      _sum: { amount: true },
-    });
-    const categoryIds = categoryWiseRaw.map((row) => row.categoryId);
-    const categories = categoryIds.length
-      ? await prisma.category.findMany({
-          where: { id: { in: categoryIds } },
-          select: { id: true, name: true },
-        })
-      : [];
-    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
-    const categoryWise = categoryWiseRaw.map((row) => ({
-      categoryId: row.categoryId,
-      category: categoryMap.get(row.categoryId) || "Uncategorized",
-      month: row.month,
-      _sum: row._sum,
-    }));
+  // Category-wise spend (month & year graphs)
+  const categoryWiseRaw = await prisma.expense.groupBy({
+    by: ["categoryId", "month"],
+    where: { userId },
+    _sum: { amount: true },
+  });
+  const categoryIds = categoryWiseRaw.map((row) => row.categoryId);
+  const categories = categoryIds.length
+    ? await prisma.category.findMany({
+        where: { id: { in: categoryIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+  const categoryWise = categoryWiseRaw.map((row) => ({
+    categoryId: row.categoryId,
+    category: categoryMap.get(row.categoryId) || "Uncategorized",
+    month: row.month,
+    _sum: row._sum,
+  }));
 
-    res.json({
-      profile: { name: user.name, email: user.email },
-      bankBalance: user.balance || 0,
-      totalIncome: totalIncome._sum.amount || 0,
-      totalExpenses:
-        (totalExpense._sum.amount || 0) +
-        (totalLoanPayments._sum.amount || 0) +
-        (totalInsurance._sum.premium || 0),
-      totalSavings,
-      totalInvestments: totalInvestments._sum.amount || 0,
-      categoryWise,
-    });
-  } catch (err) {
-    res.status(500).json({
-      error: "Failed to fetch normal dashboard",
-      details: err.message,
-    });
-  }
-};
+  res.json({
+    profile: { name: user.name, email: user.email },
+    bankBalance: Number(user.balance || 0),
+    totalIncome: normIncome,
+    totalExpenses: normTotalExpenses,
+    totalSavings,
+    totalInvestments: normInvestments,
+    categoryWise,
+  });
+});
 
 // -------------------- Advanced Dashboard --------------------
-const getAdvancedDashboard = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+const getAdvancedDashboard = asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) throw new ApiError(401, "Unauthorized");
 
-    const timeframe = req.query.timeframe || "monthly";
-    const anchor = req.query.anchor || undefined;
-    const accountId = req.query.accountId ? Number(req.query.accountId) : null;
-    const methodTypeRaw = req.query.methodType;
-    const methodType = methodTypeRaw ? normalizeType(methodTypeRaw) : null;
-    if (methodType && !METHOD_TYPES.has(methodType)) {
-      return res.status(400).json({ message: "Invalid methodType filter" });
-    }
-    const { start, end, label } = getRangeForTimeframe(timeframe, anchor);
-    const scenarioAccountIds = await getScenarioAccountIds(userId, accountId);
+  const timeframe = req.query.timeframe || "monthly";
+  const anchor = req.query.anchor || undefined;
+  const accountId = req.query.accountId ? Number(req.query.accountId) : null;
+  const methodTypeRaw = req.query.methodType;
+  const methodType = methodTypeRaw ? normalizeType(methodTypeRaw) : null;
+  if (methodType && !METHOD_TYPES.has(methodType)) {
+    throw new ApiError(400, "Invalid methodType filter");
+  }
+  const { start, end, label } = getRangeForTimeframe(timeframe, anchor);
+  const scenarioAccountIds = await getScenarioAccountIds(userId, accountId);
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+  const user = await prisma.user.findUnique({ where: { id: userId } });
 
-    const totalIncomeAgg = await prisma.income.aggregate({
-      where: {
-        userId,
-        ...buildPeriodWhere({
-          timeframe,
-          start,
-          end,
-          monthField: "month",
-          dateField: "creditedAt",
-        }),
-        ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: methodType } : {}),
-      },
-      _sum: { amount: true },
-    });
-    const totalExpenseAgg = await prisma.expense.aggregate({
-      where: {
-        userId,
-        ...buildPeriodWhere({
-          timeframe,
-          start,
-          end,
-          monthField: "month",
-          weekField: "week",
-          dateField: "spentAt",
-        }),
-        ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: methodType } : {}),
-      },
-      _sum: { amount: true },
-    });
-    const totalInvestmentAgg = await prisma.investment.aggregate({
-      where: {
-        userId,
-        ...buildPeriodWhere({
-          timeframe,
-          start,
-          end,
-          monthField: "month",
-          weekField: "week",
-          dateField: "investedAt",
-        }),
-        ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: methodType } : {}),
-      },
-      _sum: { amount: true },
-    });
-
-    const totalIncome = Number(totalIncomeAgg._sum.amount ?? 0);
-    const totalExpense = Number(totalExpenseAgg._sum.amount ?? 0);
-    const totalInvestment = Number(totalInvestmentAgg._sum.amount ?? 0);
-
-    const now = new Date();
-    const startOfWeek = new Date(now);
-    const day = startOfWeek.getDay();
-    const diff = (day + 6) % 7;
-    startOfWeek.setDate(startOfWeek.getDate() - diff);
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const [lastWeekRecord, lastMonthRecord] = await Promise.all([
-      prisma.balance.findFirst({
-        where: { userId, updatedAt: { lt: startOfWeek } },
-        orderBy: { updatedAt: "desc" },
+  const [totalIncomeAgg, totalExpenseAgg, totalInvestmentAgg, investmentTxRowsInRange] =
+    await Promise.all([
+      prisma.income.aggregate({
+        where: {
+          userId,
+          ...buildPeriodWhere({
+            timeframe,
+            start,
+            end,
+            monthField: "month",
+            dateField: "creditedAt",
+          }),
+          ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+          ...(methodType ? { paymentMethod: methodType } : {}),
+        },
+        _sum: { amount: true },
       }),
-      prisma.balance.findFirst({
-        where: { userId, updatedAt: { lt: startOfMonth } },
-        orderBy: { updatedAt: "desc" },
+      prisma.expense.aggregate({
+        where: {
+          userId,
+          ...buildPeriodWhere({
+            timeframe,
+            start,
+            end,
+            monthField: "month",
+            weekField: "week",
+            dateField: "spentAt",
+          }),
+          ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+          ...(methodType ? { paymentMethod: methodType } : {}),
+        },
+        _sum: { amount: true },
+      }),
+      prisma.investment.aggregate({
+        where: {
+          userId,
+          ...buildPeriodWhere({
+            timeframe,
+            start,
+            end,
+            monthField: "month",
+            weekField: "week",
+            dateField: "investedAt",
+          }),
+          ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+          ...(methodType ? { paymentMethod: methodType } : {}),
+        },
+        _sum: { amount: true },
+      }),
+      prisma.investmentTransaction.findMany({
+        where: {
+          userId,
+          ...buildPeriodWhere({
+            timeframe,
+            start,
+            end,
+            monthField: "month",
+            weekField: "week",
+            dateField: "transactedAt",
+          }),
+          ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+          ...(methodType ? { paymentMethod: methodType } : {}),
+        },
+        select: {
+          quantity: true,
+          price: true,
+          fees: true,
+          transactionType: true,
+        },
       }),
     ]);
 
-    const balances = {
-      current: Number(user?.balance ?? 0),
-      lastWeek: Number(lastWeekRecord?.current ?? 0),
-      lastMonth: Number(lastMonthRecord?.current ?? 0),
-    };
+  const totalIncome = Number(totalIncomeAgg._sum.amount ?? 0);
+  const totalExpense = Number(totalExpenseAgg._sum.amount ?? 0);
+  const legacyInvestmentOutflow = Number(totalInvestmentAgg._sum.amount ?? 0);
+  const investmentTxCash = investmentTxRowsInRange.reduce(
+    (acc, row) => {
+      const gross = Number(row.quantity || 0) * Number(row.price || 0);
+      const fees = Number(row.fees || 0);
+      if (row.transactionType === "SELL") {
+        const inflow = gross - fees;
+        acc.inflow += inflow;
+        return acc;
+      }
 
-    // 1) Kakeibo analysis: unexpected/unclassified spends
-    const unclassifiedExpenses = await prisma.expense.findMany({
-      where: {
-        userId,
-        category: {
-          OR: [{ kakeibo: null }, { kakeibo: "" }],
-        },
+      const outflow = gross + fees;
+      acc.outflow += outflow;
+      return acc;
+    },
+    { outflow: 0, inflow: 0 }
+  );
+  const totalInvestment = Number(
+    (legacyInvestmentOutflow + investmentTxCash.outflow).toFixed(2)
+  );
+  const netFlow = Number(
+    (
+      totalIncome -
+      totalExpense -
+      legacyInvestmentOutflow -
+      investmentTxCash.outflow +
+      investmentTxCash.inflow
+    ).toFixed(2)
+  );
+
+  const [incomeMonthMax, expenseMonthMax, investmentMonthMax, txMonthMax] =
+    await Promise.all([
+      prisma.income.aggregate({
+        where: { userId, ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}) },
+        _max: { month: true },
+      }),
+      prisma.expense.aggregate({
+        where: { userId, ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}) },
+        _max: { month: true },
+      }),
+      prisma.investment.aggregate({
+        where: { userId, ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}) },
+        _max: { month: true },
+      }),
+      prisma.investmentTransaction.aggregate({
+        where: { userId, ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}) },
+        _max: { month: true },
+      }),
+    ]);
+
+  const latestActivityMonth = [
+    incomeMonthMax?._max?.month || null,
+    expenseMonthMax?._max?.month || null,
+    investmentMonthMax?._max?.month || null,
+    txMonthMax?._max?.month || null,
+  ]
+    .filter(Boolean)
+    .sort()
+    .at(-1) || null;
+
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  const day = startOfWeek.getDay();
+  const diff = (day + 6) % 7;
+  startOfWeek.setDate(startOfWeek.getDate() - diff);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const [lastWeekRecord, lastMonthRecord] = await Promise.all([
+    prisma.balance.findFirst({
+      where: { userId, updatedAt: { lt: startOfWeek } },
+      orderBy: { updatedAt: "desc" },
+    }),
+    prisma.balance.findFirst({
+      where: { userId, updatedAt: { lt: startOfMonth } },
+      orderBy: { updatedAt: "desc" },
+    }),
+  ]);
+
+  const balances = {
+    current: Number(user?.balance ?? 0),
+    lastWeek: Number(lastWeekRecord?.current ?? 0),
+    lastMonth: Number(lastMonthRecord?.current ?? 0),
+  };
+
+  // 1) Kakeibo analysis: unexpected/unclassified spends
+  const unclassifiedExpenses = await prisma.expense.findMany({
+    where: {
+      userId,
+      category: {
+        OR: [{ kakeibo: null }, { kakeibo: "" }],
       },
-      include: { category: true },
-    });
+    },
+    include: { category: true },
+  });
 
-    // 2) Deviation alerts (vs Monthly Limits)
-    const monthKey = monthKeyIST(start);
-    const [yearStr, monthStr] = monthKey.split("-");
-    const year = Number(yearStr);
-    const month = Number(monthStr);
+  // 2) Deviation alerts (vs Monthly Limits)
+  const monthKey = monthKeyIST(start);
+  const [yearStr, monthStr] = monthKey.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
 
-    const expensesByCategory = await prisma.expense.groupBy({
-      by: ["categoryId"],
-      where: {
-        userId,
-        month: monthKey,
-        ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: methodType } : {}),
-      },
-      _sum: { amount: true },
-    });
+  const expensesByCategory = await prisma.expense.groupBy({
+    by: ["categoryId"],
+    where: {
+      userId,
+      month: monthKey,
+      ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+      ...(methodType ? { paymentMethod: methodType } : {}),
+    },
+    _sum: { amount: true },
+  });
 
-    const categoryIds = expensesByCategory
-      .map((c) => c.categoryId)
-      .filter((id) => id != null);
+  const categoryIds = expensesByCategory
+    .map((c) => c.categoryId)
+    .filter((id) => id != null);
 
-    const categories = categoryIds.length
-      ? await prisma.category.findMany({
-          where: { id: { in: categoryIds } },
-          select: { id: true, name: true },
-        })
-      : [];
-
-    const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
-
-    const limits = await prisma.limit.findMany({
-      where: {
-        userId,
-        scope: "MONTHLY",
-        OR: [
-          { month, year, categoryId: { in: categoryIds } },
-          { month, year, categoryId: null },
-          { month: null, year: null, categoryId: { in: categoryIds } },
-          { month: null, year: null, categoryId: null },
-        ],
-      },
-      orderBy: { id: "desc" },
-    });
-
-    const deviations = expensesByCategory
-      .map((cat) => {
-        const specific = limits.find((l) => l.categoryId === cat.categoryId);
-        const fallback = limits.find((l) => l.categoryId === null);
-        const limit = specific || fallback;
-        if (!limit) return null;
-        const spent = Number(cat._sum.amount ?? 0);
-        const limitAmount = Number(limit.amount ?? 0);
-        return {
-          categoryId: cat.categoryId,
-          category: categoryMap.get(cat.categoryId) || "Uncategorized",
-          spent,
-          limit: limitAmount,
-          deviation: spent - limitAmount,
-        };
+  const categories = categoryIds.length
+    ? await prisma.category.findMany({
+        where: { id: { in: categoryIds } },
+        select: { id: true, name: true },
       })
-      .filter(Boolean);
+    : [];
 
-    const expenseDifferenceByCategory = deviations.map((d) => ({
-      categoryId: d.categoryId,
-      category: d.category,
-      difference: d.deviation,
-      spent: d.spent,
-      limit: d.limit,
-    }));
+  const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
-    // 3) Tax calculations (latest record)
-    const latestTax = await prisma.taxRecord.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-    });
+  const limits = await prisma.limit.findMany({
+    where: {
+      userId,
+      scope: "MONTHLY",
+      OR: [
+        { month, year, categoryId: { in: categoryIds } },
+        { month, year, categoryId: null },
+        { month: null, year: null, categoryId: { in: categoryIds } },
+        { month: null, year: null, categoryId: null },
+      ],
+    },
+    orderBy: { id: "desc" },
+  });
 
-    let taxSummary = null;
-    if (latestTax) {
-      taxSummary = {
-        financialYear: latestTax.financialYear,
-        taxableIncome: latestTax.taxableIncome,
-        exemptions: latestTax.exemptions,
-        liability: latestTax.liability,
+  const deviations = expensesByCategory
+    .map((cat) => {
+      const specific = limits.find((l) => l.categoryId === cat.categoryId);
+      const fallback = limits.find((l) => l.categoryId === null);
+      const limit = specific || fallback;
+      if (!limit) return null;
+      const spent = Number(cat._sum.amount ?? 0);
+      const limitAmount = Number(limit.amount ?? 0);
+      return {
+        categoryId: cat.categoryId,
+        category: categoryMap.get(cat.categoryId) || "Uncategorized",
+        spent,
+        limit: limitAmount,
+        deviation: spent - limitAmount,
       };
-    }
+    })
+    .filter(Boolean);
 
-    // 4) Goal tracking
-    const goals = await prisma.goal.findMany({ where: { userId } });
+  const expenseDifferenceByCategory = deviations.map((d) => ({
+    categoryId: d.categoryId,
+    category: d.category,
+    difference: d.deviation,
+    spent: d.spent,
+    limit: d.limit,
+  }));
 
-    // 5) Investment summary
-    const investments = await prisma.investment.findMany({
-      where: {
-        userId,
-        ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: methodType } : {}),
-      },
-    });
-    const investmentSummary = {
-      total: investments.reduce((a, i) => a + i.amount, 0),
-      count: investments.length,
+  // 3) Tax calculations (latest record)
+  const latestTax = await prisma.taxRecord.findFirst({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  let taxSummary = null;
+  if (latestTax) {
+    taxSummary = {
+      financialYear: latestTax.financialYear,
+      taxableIncome: latestTax.taxableIncome,
+      exemptions: latestTax.exemptions,
+      liability: latestTax.liability,
     };
-
-    // 6) Future predictions (trend-based)
-    const { start: monthStart, end: monthEnd } = getMonthDateRange(monthKey); // current month
-    const recentIncomes = await prisma.income.findMany({
-      where: {
-        userId,
-        creditedAt: { gte: monthStart, lte: monthEnd },
-        ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: methodType } : {}),
-      },
-    });
-    const recentExpenses = await prisma.expense.findMany({
-      where: {
-        userId,
-        spentAt: { gte: monthStart, lte: monthEnd },
-        ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
-        ...(methodType ? { paymentMethod: methodType } : {}),
-      },
-    });
-
-    const avgIncome =
-      recentIncomes.reduce((a, i) => a + i.amount, 0) /
-      (recentIncomes.length || 1);
-
-    const avgExpense =
-      recentExpenses.reduce((a, e) => a + e.amount, 0) /
-      (recentExpenses.length || 1);
-
-    const predictedSaving = avgIncome - avgExpense;
-
-    const insightsAnchor = parseAnchorDate(timeframe, anchor);
-    const spendAnomalies = await buildSpendAnomalyInsights(
-      userId,
-      monthKey,
-      scenarioAccountIds,
-      methodType
-    );
-    const incomeStability = await buildIncomeStabilityInsights(
-      userId,
-      insightsAnchor,
-      scenarioAccountIds,
-      methodType
-    );
-    const investmentHealth = await buildInvestmentHealthInsights(
-      userId,
-      insightsAnchor,
-      scenarioAccountIds,
-      methodType
-    );
-    const riskForecast = await buildRiskForecastInsights(
-      userId,
-      insightsAnchor,
-      balances.current,
-      scenarioAccountIds,
-      methodType
-    );
-    const spendingAnalysis = await buildSpendingAnalysis(
-      userId,
-      timeframe,
-      start,
-      end,
-      scenarioAccountIds,
-      methodType,
-      monthKey,
-      deviations
-    );
-    const investmentAnalysis = await buildInvestmentAnalysis(
-      userId,
-      scenarioAccountIds,
-      methodType
-    );
-    const cumulativeTrend = await buildCumulativeTrendInsights(
-      userId,
-      timeframe,
-      insightsAnchor,
-      scenarioAccountIds,
-      methodType
-    );
-    const netWorth = {
-      savings: Number(balances.current || 0),
-      investments: Number(investmentAnalysis.portfolio.currentValue || 0),
-      total: Number(
-        (
-          Number(balances.current || 0) +
-          Number(investmentAnalysis.portfolio.currentValue || 0)
-        ).toFixed(2)
-      ),
-    };
-
-    res.json({
-      label,
-      totalIncome,
-      totalExpense,
-      totalInvestment,
-      balances,
-      expenseDifferenceByCategory,
-      kakeibo: unclassifiedExpenses,
-      deviations,
-      tax: taxSummary,
-      goals,
-      investmentSummary,
-      futurePredictions: {
-        avgIncome,
-        avgExpense,
-        predictedSaving,
-      },
-      accountFilter: scenarioAccountIds ? { rootAccountId: accountId, accountIds: scenarioAccountIds } : null,
-      methodFilter: methodType || null,
-      analysis: {
-        spending: spendingAnalysis,
-        investment: investmentAnalysis,
-        netWorth,
-        cumulativeTrend,
-      },
-      insights: {
-        spendAnomalies,
-        incomeStability,
-        investmentHealth,
-        riskForecast,
-      },
-    });
-  } catch (err) {
-    res.status(500).json({
-      error: "Failed to fetch advanced dashboard",
-      details: err.message,
-    });
   }
-};
+
+  // 4) Goal tracking
+  const goals = await prisma.goal.findMany({ where: { userId } });
+
+  // 5) Investment summary
+  const investments = await prisma.investment.findMany({
+    where: {
+      userId,
+      ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+      ...(methodType ? { paymentMethod: methodType } : {}),
+    },
+  });
+  const investmentSummary = {
+    total: investments.reduce((a, i) => a + Number(i.amount || 0), 0),
+    count: investments.length,
+  };
+
+  // 6) Future predictions (trend-based)
+  const { start: monthStart, end: monthEnd } = getMonthDateRange(monthKey); // current month
+  const recentIncomes = await prisma.income.findMany({
+    where: {
+      userId,
+      creditedAt: { gte: monthStart, lte: monthEnd },
+      ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+      ...(methodType ? { paymentMethod: methodType } : {}),
+    },
+  });
+  const recentExpenses = await prisma.expense.findMany({
+    where: {
+      userId,
+      spentAt: { gte: monthStart, lte: monthEnd },
+      ...(scenarioAccountIds ? { accountId: { in: scenarioAccountIds } } : {}),
+      ...(methodType ? { paymentMethod: methodType } : {}),
+    },
+  });
+
+  const avgIncome =
+    recentIncomes.reduce((a, i) => a + Number(i.amount || 0), 0) /
+    (recentIncomes.length || 1);
+
+  const avgExpense =
+    recentExpenses.reduce((a, e) => a + Number(e.amount || 0), 0) /
+    (recentExpenses.length || 1);
+
+  const predictedSaving = avgIncome - avgExpense;
+
+  const insightsAnchor = parseAnchorDate(timeframe, anchor);
+  const spendAnomalies = await buildSpendAnomalyInsights(
+    userId,
+    monthKey,
+    scenarioAccountIds,
+    methodType
+  );
+  const incomeStability = await buildIncomeStabilityInsights(
+    userId,
+    insightsAnchor,
+    scenarioAccountIds,
+    methodType
+  );
+  const investmentHealth = await buildInvestmentHealthInsights(
+    userId,
+    insightsAnchor,
+    scenarioAccountIds,
+    methodType
+  );
+  const riskForecast = await buildRiskForecastInsights(
+    userId,
+    insightsAnchor,
+    balances.current,
+    scenarioAccountIds,
+    methodType
+  );
+  const spendingAnalysis = await buildSpendingAnalysis(
+    userId,
+    timeframe,
+    start,
+    end,
+    scenarioAccountIds,
+    methodType,
+    monthKey,
+    deviations
+  );
+  const investmentAnalysis = await buildInvestmentAnalysis(
+    userId,
+    scenarioAccountIds,
+    methodType
+  );
+  const cumulativeTrend = await buildCumulativeTrendInsights(
+    userId,
+    timeframe,
+    insightsAnchor,
+    scenarioAccountIds,
+    methodType
+  );
+  const netWorth = {
+    savings: Number(balances.current || 0),
+    investments: Number(investmentAnalysis.portfolio.currentValue || 0),
+    total: Number(
+      (
+        Number(balances.current || 0) +
+        Number(investmentAnalysis.portfolio.currentValue || 0)
+      ).toFixed(2)
+    ),
+  };
+
+  res.json({
+    label,
+    totalIncome,
+    totalExpense,
+    totalInvestment,
+    netFlow,
+    investmentCashFlow: {
+      outflow: Number((legacyInvestmentOutflow + investmentTxCash.outflow).toFixed(2)),
+      inflow: Number(investmentTxCash.inflow.toFixed(2)),
+      netOutflow: Number(
+        (legacyInvestmentOutflow + investmentTxCash.outflow - investmentTxCash.inflow).toFixed(2)
+      ),
+    },
+    latestActivityMonth,
+    balances,
+    expenseDifferenceByCategory,
+    kakeibo: unclassifiedExpenses,
+    deviations,
+    tax: taxSummary,
+    goals,
+    investmentSummary,
+    futurePredictions: {
+      avgIncome,
+      avgExpense,
+      predictedSaving,
+    },
+    accountFilter: scenarioAccountIds ? { rootAccountId: accountId, accountIds: scenarioAccountIds } : null,
+    methodFilter: methodType || null,
+    analysis: {
+      spending: spendingAnalysis,
+      investment: investmentAnalysis,
+      netWorth,
+      cumulativeTrend,
+    },
+    insights: {
+      spendAnomalies,
+      incomeStability,
+      investmentHealth,
+      riskForecast,
+    },
+  });
+});
 
 module.exports = {
   getNormalDashboard,

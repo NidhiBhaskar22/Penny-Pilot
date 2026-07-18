@@ -20,8 +20,10 @@ const HomePage = () => {
         <HeroSection />
         <TrustBarSection />
         <OverviewSection />
+        <FeaturesSection />
         <WorkflowSection />
         <AnalysisSection />
+        <PlanningSection />
         <UseCasesSection />
         <SecuritySection />
         <FinalCtaSection />

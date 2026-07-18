@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant C as Client
+    participant S as authService
+    participant DB as PostgreSQL
+
+    C->>S: POST /auth/login (email, password)
+    S->>DB: verify bcrypt hash
+    S->>DB: create Session (refreshTokenHash)
+    S-->>C: accessToken (15m) and refreshToken
+
+    Note over C,S: access token expires
+
+    C->>S: POST /auth/refresh (refreshToken)
+    S->>DB: find Session by hash(refreshToken)
+    alt hash mismatch, reuse or stolen token
+        S->>DB: revoke ALL sessions for user
+        S-->>C: 401 reuse detected, please login again
+    else valid
+        S->>DB: rotate refreshTokenHash, extend expiry
+        S-->>C: new accessToken and refreshToken
+    end

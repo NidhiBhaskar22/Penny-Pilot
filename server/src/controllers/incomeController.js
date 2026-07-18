@@ -1,8 +1,7 @@
 // src/controllers/incomeController.js
 const { asyncHandler, ApiError } = require("../middleware/errorMiddleware");
 const incomeService = require("../services/incomeService");
-
-const getUserId = (req) => req.user?.userId ?? req.user?.id;
+const { getUserId } = require("../utils/requestUtils");
 
 // POST /api/income
 exports.createIncome = asyncHandler(async (req, res) => {

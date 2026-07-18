@@ -1,8 +1,7 @@
 // src/controllers/expenseController.js
 const { asyncHandler, ApiError } = require("../middleware/errorMiddleware");
 const expenseService = require("../services/expenseService");
-
-const getUserId = (req) => req.user?.userId ?? req.user?.id;
+const { getUserId } = require("../utils/requestUtils");
 
 // POST /api/expenses
 exports.createExpense = asyncHandler(async (req, res) => {

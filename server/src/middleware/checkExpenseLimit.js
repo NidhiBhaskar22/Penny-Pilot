@@ -7,7 +7,7 @@ async function checkExpenseLimit(req, res, next) {
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
     if (!req.body) return next();
-    if (req.method !== "POST") return next();
+    if (req.method !== "POST" && req.method !== "PUT") return next();
     const { amount, spentAt, categoryId } = req.body;
     if (amount == null || !spentAt || !categoryId) return next();
 
@@ -135,8 +135,8 @@ async function checkExpenseLimit(req, res, next) {
 
     next();
   } catch (error) {
-    res.status(500).json({ message: "Error checking expense limits", error });
-    console.log("Check expense limit error:", error);
+    console.error("Check expense limit error:", error);
+    next(error);
   }
 }
 

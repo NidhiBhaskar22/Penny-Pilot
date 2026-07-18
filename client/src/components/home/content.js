@@ -26,13 +26,13 @@ export const featureCards = [
   {
     title: "Plan forward, not backward",
     copy:
-      "Track EMIs, loans, goals, and investments together so future commitments stay visible next to current spending.",
+      "Track investments and limits together so future commitments stay visible next to current spending.",
   },
 ];
 
 export const overviewStats = [
   { label: "Money views", value: "Income, expense, balance, investment" },
-  { label: "Planning layer", value: "Goals, limits, EMIs, loans" },
+  { label: "Planning layer", value: "Limits, AI-driven insights" },
   { label: "Control model", value: "Accounts, categories, payment methods" },
 ];
 
@@ -40,8 +40,8 @@ export const trustItems = [
   "Expense tracking",
   "Budget limits",
   "Investment insights",
-  "EMI and loan management",
-  "Goal planning",
+  "AI-powered analysis",
+  "Multi-account support",
 ];
 
 export const workflowSteps = [
@@ -61,7 +61,7 @@ export const workflowSteps = [
     step: "03",
     title: "Act with intent",
     copy:
-      "Set limits, fund goals, and manage debt with enough context to make the next move obvious.",
+      "Set limits and lean on AI-driven insights to make the next money move obvious.",
   },
 ];
 
@@ -69,30 +69,23 @@ export const useCases = [
   {
     audience: "Students",
     copy:
-      "Control monthly allowances, rent, subscriptions, and split expenses without losing sight of essentials.",
+      "Control monthly allowances, rent, and subscriptions without losing sight of essentials.",
   },
   {
     audience: "Professionals",
     copy:
-      "Track salary inflows, SIPs, discretionary spending, and short-term goals in one disciplined workflow.",
+      "Track salary inflows, SIPs, and discretionary spending in one disciplined workflow.",
   },
   {
     audience: "Households",
     copy:
-      "Balance family spending, loan commitments, planned purchases, and recurring payments from a shared structure.",
+      "Balance family spending, planned purchases, and recurring payments from a shared structure.",
   },
 ];
 
 export const planningItems = [
   "Set daily, weekly, or monthly spending limits",
-  "Monitor active EMIs and loan obligations",
-  "Track goal contributions from income or expense flow",
+  "Get AI-driven insights on spending and investment patterns",
+  "Track investments across accounts and payment methods",
   "Balance discipline with flexibility across categories",
-];
-
-export const securityItems = [
-  "Secure authentication flow",
-  "Private account-scoped data access",
-  "Clear separation between app and public pages",
-  "Production deployment with managed backend and database",
 ];

@@ -12,7 +12,7 @@ const {
 } = require("../controllers/authController");
 const authMiddleware = require("../middleware/authMiddleware");
 
-router.post("/register", register); // pass function, no parentheses
+router.post("/register", register);
 router.post("/login", login);
 router.post("/google", googleLogin);
 router.post("/complete-profile", authMiddleware, completeProfile);

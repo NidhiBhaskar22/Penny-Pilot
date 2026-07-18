@@ -33,7 +33,7 @@ const Header = ({ themeMode, setThemeMode }) => {
         <div className="relative mx-auto flex max-w-[1200px] items-center gap-4 px-6 py-4">
           <RouterLink to="/" className="flex items-center gap-2">
             <span className="text-lg font-semibold tracking-wide text-mist">
-              PennyPilot
+              Penny Pilot
             </span>
           </RouterLink>
 

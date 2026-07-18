@@ -1,5 +1,3 @@
-// utils/dateUtils.js
-
 // Format as "YYYY-MM" in IST
 const monthKeyIST = (date = new Date()) => {
   const tzDate = new Date(

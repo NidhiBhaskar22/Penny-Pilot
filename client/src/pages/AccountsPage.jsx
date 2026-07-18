@@ -2,6 +2,7 @@
 import AppShell from "../components/layout/AppShell";
 import axiosClient from "../api/axiosClient";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { formatCurrency } from "../utils/currency";
 
 const METHOD_OPTIONS = [
   { value: "NET_BANKING", label: "Net Banking" },
@@ -14,7 +15,7 @@ const METHOD_OPTIONS = [
 const formatMethods = (methods = []) =>
   methods.length ? methods.map((m) => m.replaceAll("_", " ")).join(", ") : "No methods enabled";
 
-const formatBalance = (value) => `INR ${Number(value || 0).toLocaleString("en-IN")}`;
+const formatBalance = (value) => formatCurrency(value);
 
 export default function AccountsPage() {
   const [banks, setBanks] = useState([]);

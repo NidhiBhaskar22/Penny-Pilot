@@ -38,7 +38,7 @@ export default function UseCasesSection() {
             Built for different financial rhythms.
           </h2>
           <p className="mt-8 max-w-xl text-base leading-8 text-mist/64">
-            Penny-Pilot adapts to personal budgets, career cash flow, and
+            Penny Pilot adapts to personal budgets, career cash flow, and
             household planning without flattening everything into the same
             view.
           </p>

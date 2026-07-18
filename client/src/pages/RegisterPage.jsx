@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import bgAuth from "../assests/bg_auth.jpg";
+import bgAuth from "../assets/bg_auth.jpg";
 
 const RegisterPage = () => {
   const navigate = useNavigate();
@@ -54,7 +54,7 @@ const RegisterPage = () => {
                   From Day One
                 </h2>
                 <p className="mt-4 max-w-sm text-sm text-white/80">
-                  Create your Penny Pilot account to organize spending, set goals,
+                  Create your Penny Pilot account to organize spending, set limits,
                   and start tracking your finances with structure.
                 </p>
               </div>

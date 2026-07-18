@@ -1,8 +1,8 @@
 const prisma = require("../config/prismaClient");
 const { applyBalanceChange } = require("../utils/balanceUtils");
 const { monthKeyIST, getWeekOfMonth } = require("../utils/datKeys");
-
-const getUserId = (req) => req.user?.userId ?? req.user?.id;
+const { asyncHandler, ApiError } = require("../middleware/errorMiddleware");
+const { getUserId } = require("../utils/requestUtils");
 
 /**
  * Create a split expense
@@ -10,291 +10,247 @@ const getUserId = (req) => req.user?.userId ?? req.user?.id;
  * - Creates SplitExpense records for each participant
  * - Adjusts balances: payer gets credited, others debited
  */
-const createSplitExpense = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+const createSplitExpense = asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) throw new ApiError(401, "Unauthorized");
 
-    const { amount, spentAt, splits, accountId, categoryId } = req.body;
-    if (!amount || !spentAt || !accountId || !categoryId) {
-      return res.status(400).json({
-        message: "amount, spentAt, accountId, categoryId are required",
-      });
-    }
-    if (!Array.isArray(splits) || splits.length === 0) {
-      return res.status(400).json({ message: "splits are required" });
-    }
+  const { amount, spentAt, splits, accountId, categoryId } = req.body;
+  if (!amount || !spentAt || !accountId || !categoryId) {
+    throw new ApiError(400, "amount, spentAt, accountId, categoryId are required");
+  }
+  if (!Array.isArray(splits) || splits.length === 0) {
+    throw new ApiError(400, "splits are required");
+  }
 
-    const month = monthKeyIST(new Date(spentAt));
-    const week = getWeekOfMonth(new Date(spentAt));
+  const month = monthKeyIST(new Date(spentAt));
+  const week = getWeekOfMonth(new Date(spentAt));
 
-    // Transaction: expense + splits + balances
-    const result = await prisma.$transaction(async (tx) => {
-      const expense = await tx.expense.create({
+  // Transaction: expense + splits + balances
+  const result = await prisma.$transaction(async (tx) => {
+    const expense = await tx.expense.create({
+      data: {
+        userId,
+        amount,
+        spentAt: new Date(spentAt),
+        month,
+        week,
+        accountId,
+        categoryId,
+      },
+    });
+
+    for (const split of splits) {
+      const {
+        userId: participantId,
+        amountOwed,
+        amountPaid,
+        paidByUserId,
+      } = split;
+
+      await tx.splitExpense.create({
         data: {
-          userId,
-          amount,
-          spentAt: new Date(spentAt),
-          month,
-          week,
-          accountId,
-          categoryId,
-        },
-      });
-
-      for (const split of splits) {
-        const {
+          expenseId: expense.id,
           userId: participantId,
           amountOwed,
           amountPaid,
           paidByUserId,
-        } = split;
+        },
+      });
 
-        await tx.splitExpense.create({
-          data: {
-            expenseId: expense.id,
-            userId: participantId,
-            amountOwed,
-            amountPaid,
-            paidByUserId,
-          },
-        });
-
-        // Balance logic:
-        // If this participant did NOT pay their share -> debit them
-        if (paidByUserId !== participantId) {
-          await applyBalanceChange(participantId, -amountOwed);
-          await applyBalanceChange(paidByUserId, amountOwed);
-        }
+      // Balance logic:
+      // If this participant did NOT pay their share -> debit them
+      if (paidByUserId !== participantId) {
+        await applyBalanceChange(participantId, -amountOwed);
+        await applyBalanceChange(paidByUserId, amountOwed);
       }
+    }
 
-      return expense;
-    });
+    return expense;
+  });
 
-    res.json(result);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to create split expense", details: err.message });
-  }
-};
+  res.json(result);
+});
 
 /**
  * Update a split expense
  * - Roll back old balance changes
  * - Apply new split distribution
  */
-const updateSplitExpense = async (req, res) => {
-  try {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+const updateSplitExpense = asyncHandler(async (req, res) => {
+  const userId = getUserId(req);
+  if (!userId) throw new ApiError(401, "Unauthorized");
 
-    const { id } = req.params;
-    const { splits } = req.body;
+  const { id } = req.params;
+  const { splits } = req.body;
 
-    const expense = await prisma.expense.findFirst({
-      where: { id: parseInt(id), userId },
-      select: { id: true },
-    });
-    if (!expense)
-      return res.status(404).json({ error: "Split expense not found" });
+  const expense = await prisma.expense.findFirst({
+    where: { id: parseInt(id), userId },
+    select: { id: true },
+  });
+  if (!expense) throw new ApiError(404, "Split expense not found");
 
-    const existing = await prisma.splitExpense.findMany({
-      where: { expenseId: parseInt(id) },
-    });
-    if (!existing.length)
-      return res.status(404).json({ error: "Split expense not found" });
+  const existing = await prisma.splitExpense.findMany({
+    where: { expenseId: parseInt(id) },
+  });
+  if (!existing.length) throw new ApiError(404, "Split expense not found");
 
-    // Transaction: rollback + reapply
-    await prisma.$transaction(async (tx) => {
-      // rollback old balance impacts
-      for (const split of existing) {
-        if (split.paidByUserId !== split.userId) {
-          await applyBalanceChange(split.userId, split.amountOwed); // refund participant
-          await applyBalanceChange(split.paidByUserId, -split.amountOwed); // remove from payer
-        }
+  // Transaction: rollback + reapply
+  await prisma.$transaction(async (tx) => {
+    // rollback old balance impacts
+    for (const split of existing) {
+      if (split.paidByUserId !== split.userId) {
+        await applyBalanceChange(split.userId, split.amountOwed); // refund participant
+        await applyBalanceChange(split.paidByUserId, -split.amountOwed); // remove from payer
       }
+    }
 
-      // delete old splits
-      await tx.splitExpense.deleteMany({ where: { expenseId: parseInt(id) } });
+    // delete old splits
+    await tx.splitExpense.deleteMany({ where: { expenseId: parseInt(id) } });
 
-      // add new splits
-      for (const split of splits) {
-        const {
+    // add new splits
+    for (const split of splits) {
+      const {
+        userId: participantId,
+        amountOwed,
+        amountPaid,
+        paidByUserId,
+      } = split;
+
+      await tx.splitExpense.create({
+        data: {
+          expenseId: parseInt(id),
           userId: participantId,
           amountOwed,
           amountPaid,
           paidByUserId,
-        } = split;
+        },
+      });
 
-        await tx.splitExpense.create({
-          data: {
-            expenseId: parseInt(id),
-            userId: participantId,
-            amountOwed,
-            amountPaid,
-            paidByUserId,
-          },
-        });
-
-        if (paidByUserId !== participantId) {
-          await applyBalanceChange(participantId, -amountOwed);
-          await applyBalanceChange(paidByUserId, amountOwed);
-        }
+      if (paidByUserId !== participantId) {
+        await applyBalanceChange(participantId, -amountOwed);
+        await applyBalanceChange(paidByUserId, amountOwed);
       }
-    });
+    }
+  });
 
-    res.json({ message: "Split expense updated successfully" });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to update split expense", details: err.message });
-  }
-};
+  res.json({ message: "Split expense updated successfully" });
+});
 
 /**
  * Create Money Lent
  */
-const createMoneyLent = async (req, res) => {
-  try {
-    const lenderId = getUserId(req);
-    if (!lenderId) return res.status(401).json({ message: "Unauthorized" });
+const createMoneyLent = asyncHandler(async (req, res) => {
+  const lenderId = getUserId(req);
+  if (!lenderId) throw new ApiError(401, "Unauthorized");
 
-    const { borrower, amount, purpose, dueDate } = req.body;
+  const { borrower, amount, purpose, dueDate } = req.body;
 
-    const moneyLent = await prisma.moneyLent.create({
-      data: {
-        lenderId,
-        borrower,
-        amount,
-        purpose,
-        dueDate: dueDate ? new Date(dueDate) : null,
-      },
-    });
+  const moneyLent = await prisma.moneyLent.create({
+    data: {
+      lenderId,
+      borrower,
+      amount,
+      purpose,
+      dueDate: dueDate ? new Date(dueDate) : null,
+    },
+  });
 
-    await applyBalanceChange(lenderId, -amount);
+  await applyBalanceChange(lenderId, -amount);
 
-    res.json(moneyLent);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to create money lent", details: err.message });
-  }
-};
+  res.json(moneyLent);
+});
 
 /**
  * Update Money Lent
  */
-const updateMoneyLent = async (req, res) => {
-  try {
-    const lenderId = getUserId(req);
-    if (!lenderId) return res.status(401).json({ message: "Unauthorized" });
+const updateMoneyLent = asyncHandler(async (req, res) => {
+  const lenderId = getUserId(req);
+  if (!lenderId) throw new ApiError(401, "Unauthorized");
 
-    const { id } = req.params;
-    const { amount, ...rest } = req.body;
+  const { id } = req.params;
+  const { amount, ...rest } = req.body;
 
-    const existing = await prisma.moneyLent.findUnique({
+  const existing = await prisma.moneyLent.findUnique({
+    where: { id: parseInt(id) },
+  });
+  if (!existing) throw new ApiError(404, "Money lent record not found");
+  if (existing.lenderId !== lenderId) throw new ApiError(403, "Forbidden");
+
+  const diff = amount !== undefined ? amount - existing.amount : 0;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const ml = await tx.moneyLent.update({
       where: { id: parseInt(id) },
-    });
-    if (!existing)
-      return res.status(404).json({ error: "Money lent record not found" });
-    if (existing.lenderId !== lenderId)
-      return res.status(403).json({ error: "Forbidden" });
-
-    const diff = amount !== undefined ? amount - existing.amount : 0;
-
-    const updated = await prisma.$transaction(async (tx) => {
-      const ml = await tx.moneyLent.update({
-        where: { id: parseInt(id) },
-        data: { ...rest, amount },
-      });
-
-      if (diff !== 0) {
-        await applyBalanceChange(existing.lenderId, -diff);
-      }
-
-      return ml;
+      data: { ...rest, amount },
     });
 
-    res.json(updated);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to update money lent", details: err.message });
-  }
-};
+    if (diff !== 0) {
+      await applyBalanceChange(existing.lenderId, -diff);
+    }
+
+    return ml;
+  });
+
+  res.json(updated);
+});
 
 /**
  * Create Money Borrowed
  */
-const createMoneyBorrowed = async (req, res) => {
-  try {
-    const borrowerId = getUserId(req);
-    if (!borrowerId) return res.status(401).json({ message: "Unauthorized" });
+const createMoneyBorrowed = asyncHandler(async (req, res) => {
+  const borrowerId = getUserId(req);
+  if (!borrowerId) throw new ApiError(401, "Unauthorized");
 
-    const { lender, amount, purpose, dueDate } = req.body;
+  const { lender, amount, purpose, dueDate } = req.body;
 
-    const moneyBorrowed = await prisma.moneyBorrowed.create({
-      data: {
-        borrowerId,
-        lender,
-        amount,
-        purpose,
-        dueDate: dueDate ? new Date(dueDate) : null,
-      },
-    });
+  const moneyBorrowed = await prisma.moneyBorrowed.create({
+    data: {
+      borrowerId,
+      lender,
+      amount,
+      purpose,
+      dueDate: dueDate ? new Date(dueDate) : null,
+    },
+  });
 
-    await applyBalanceChange(borrowerId, amount);
+  await applyBalanceChange(borrowerId, amount);
 
-    res.json(moneyBorrowed);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to create money borrowed", details: err.message });
-  }
-};
+  res.json(moneyBorrowed);
+});
 
 /**
  * Update Money Borrowed
  */
-const updateMoneyBorrowed = async (req, res) => {
-  try {
-    const borrowerId = getUserId(req);
-    if (!borrowerId) return res.status(401).json({ message: "Unauthorized" });
+const updateMoneyBorrowed = asyncHandler(async (req, res) => {
+  const borrowerId = getUserId(req);
+  if (!borrowerId) throw new ApiError(401, "Unauthorized");
 
-    const { id } = req.params;
-    const { amount, ...rest } = req.body;
+  const { id } = req.params;
+  const { amount, ...rest } = req.body;
 
-    const existing = await prisma.moneyBorrowed.findUnique({
+  const existing = await prisma.moneyBorrowed.findUnique({
+    where: { id: parseInt(id) },
+  });
+  if (!existing) throw new ApiError(404, "Money borrowed record not found");
+  if (existing.borrowerId !== borrowerId) throw new ApiError(403, "Forbidden");
+
+  const diff = amount !== undefined ? amount - existing.amount : 0;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const mb = await tx.moneyBorrowed.update({
       where: { id: parseInt(id) },
-    });
-    if (!existing)
-      return res.status(404).json({ error: "Money borrowed record not found" });
-    if (existing.borrowerId !== borrowerId)
-      return res.status(403).json({ error: "Forbidden" });
-
-    const diff = amount !== undefined ? amount - existing.amount : 0;
-
-    const updated = await prisma.$transaction(async (tx) => {
-      const mb = await tx.moneyBorrowed.update({
-        where: { id: parseInt(id) },
-        data: { ...rest, amount },
-      });
-
-      if (diff !== 0) {
-        await applyBalanceChange(existing.borrowerId, diff);
-      }
-
-      return mb;
+      data: { ...rest, amount },
     });
 
-    res.json(updated);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to update money borrowed", details: err.message });
-  }
-};
+    if (diff !== 0) {
+      await applyBalanceChange(existing.borrowerId, diff);
+    }
+
+    return mb;
+  });
+
+  res.json(updated);
+});
 
 module.exports = {
   createSplitExpense,

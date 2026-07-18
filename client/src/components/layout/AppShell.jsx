@@ -1,14 +1,9 @@
 import React, { useState } from "react";
 import Sidebar from "../layout/Sidebar";
-import bgAuth from "../../assests/bg_auth.jpg";
 
 function TechBg() {
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-      {/* <div
-        className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: `url(${bgAuth})` }}
-      /> */}
       <div className="absolute inset-0 bg-[rgb(var(--pp-page-rgb)/0.72)]" />
       {/* cool light bloom */}
       <div

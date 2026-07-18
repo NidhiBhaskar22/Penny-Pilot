@@ -95,7 +95,6 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// ✅ This fixes the error in ProtectedRoute.js
 export const useAuth = () => {
   return useContext(AuthContext);
 };

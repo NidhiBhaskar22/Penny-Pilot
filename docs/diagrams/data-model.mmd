@@ -1,0 +1,49 @@
+erDiagram
+    User ||--o{ Account : owns
+    User ||--o{ Category : defines
+    User ||--o{ Session : "refresh sessions"
+    Account ||--o{ AccountMethod : "enabled methods"
+    Account ||--o{ Income : receives
+    Account ||--o{ Expense : pays
+    Account ||--o{ InvestmentTransaction : trades
+
+    User ||--o{ Income : logs
+    User ||--o{ Expense : logs
+    User ||--o{ Limit : sets
+    User ||--o{ InvestmentTransaction : places
+
+    Category ||--o{ Income : tags
+    Category ||--o{ Expense : tags
+    Category ||--o{ Limit : scopes
+
+    Instrument ||--o{ InvestmentTransaction : "bought/sold"
+    Instrument ||--|| InstrumentQuote : "latest price"
+
+    User {
+        int id
+        string email
+        decimal balance
+    }
+    Account {
+        int id
+        string name
+        decimal balance
+        bool isActive
+    }
+    InvestmentTransaction {
+        int id
+        enum transactionType "BUY, SELL"
+        decimal quantity
+        decimal price
+        decimal fees
+        date transactedAt
+    }
+    Limit {
+        int id
+        enum scope "DAILY, WEEKLY, MONTHLY"
+        decimal amount
+    }
+    Instrument {
+        string symbol
+        enum assetType "STOCK, ETF, MUTUAL_FUND, more"
+    }

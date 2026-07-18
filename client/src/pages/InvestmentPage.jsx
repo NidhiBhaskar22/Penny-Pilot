@@ -3,6 +3,8 @@ import axiosClient from "../api/axiosClient";
 import AppShell from "../components/layout/AppShell";
 import AnimatedNumber from "../components/dashboard/AnimatedNumber";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { formatCurrency } from "../utils/currency";
+import { formatDate } from "../utils/formatDate";
 
 const METHOD_LABELS = {
   NET_BANKING: "Net Banking",
@@ -24,15 +26,15 @@ const CHARGE_PRESETS = [
   },
   {
     value: "ZERO",
-    label: "Unknown or ignore for now (â‚¹0)",
+    label: "Unknown or ignore for now (₹0)",
   },
   {
     value: "DIRECT_MF",
-    label: "Direct mutual fund platforms (usually â‚¹0 platform charge)",
+    label: "Direct mutual fund platforms (usually ₹0 platform charge)",
   },
   {
     value: "ZERODHA_DELIVERY",
-    label: "Zerodha equity delivery / ETF buy (brokerage â‚¹0, taxes excluded)",
+    label: "Zerodha equity delivery / ETF buy (brokerage ₹0, taxes excluded)",
   },
   {
     value: "GROWW_DELIVERY",
@@ -75,12 +77,9 @@ function TechCard({ children, className = "" }) {
   );
 }
 
-function fmtCurrency(value, currency = "INR") {
+function fmtCurrency(value) {
   if (value == null || value === "") return "-";
-  return `${currency} ${Number(value).toLocaleString("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return formatCurrency(value);
 }
 
 function fmtNumber(value, digits = 2) {
@@ -189,7 +188,7 @@ function TransactionsTable({ items, onDelete }) {
                 className={index % 2 === 0 ? "bg-[rgb(var(--pp-panel-strong-rgb)/0.78)]" : "bg-[rgb(var(--pp-panel-soft-rgb)/0.78)]"}
               >
                 <td className="px-4 py-4 text-xs text-mist/72">
-                  {new Date(item.transactedAt).toLocaleDateString("en-IN")}
+                  {formatDate(item.transactedAt)}
                 </td>
                 <td className="px-4 py-4">
                   <div className="font-semibold text-mist">{isMf ? item.instrument?.name : item.instrument?.symbol}</div>
@@ -497,7 +496,7 @@ export default function InvestmentPage() {
                 onClick={() => setNotice("")}
                 className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-sm text-amber-50 transition hover:bg-white/10"
               >
-                Ã—
+                ×
               </button>
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -641,12 +640,12 @@ export default function InvestmentPage() {
                     {isMutualFundMode ? result.name : result.symbol}
                   </div>
                   <div className="mt-1 inline-block text-sm text-mist/70">
-                    {isMutualFundMode ? `${result.amc} â€¢ ${result.category}` : result.name}
+                    {isMutualFundMode ? `${result.amc} • ${result.category}` : result.name}
                   </div>
                   <div className="ml-2 inline-block text-[11px] uppercase tracking-[0.16em] text-mist/42">
                     {isMutualFundMode
-                      ? `AMFI â€¢ NAV ${fmtCurrency(result.nav)} â€¢ ${result.navDate}`
-                      : `${result.exchange || "INDIA"} â€¢ INR`}
+                      ? `AMFI • NAV ${fmtCurrency(result.nav)} • ${result.navDate}`
+                      : `${result.exchange || "INDIA"} • INR`}
                   </div>
                 </button>
               ))}
@@ -668,8 +667,8 @@ export default function InvestmentPage() {
                   <div className="text-2xl font-bold text-mist">{instrument.name}</div>
                   <div className="mt-1 text-sm uppercase tracking-[0.22em] text-mist/58">
                     {isMutualFundMode
-                      ? `${mfMeta?.schemeCode || ""} â€¢ AMFI â€¢ INDIA`
-                      : `${instrument.symbol} â€¢ ${instrument.exchange || "INDIA"}`}
+                      ? `${mfMeta?.schemeCode || ""} • AMFI • INDIA`
+                      : `${instrument.symbol} • ${instrument.exchange || "INDIA"}`}
                   </div>
                 </div>
 

@@ -3,6 +3,7 @@ const instrumentService = require("../services/instrumentService");
 const { monthKeyIST, getWeekOfMonth } = require("../utils/datKeys");
 const { applyBalanceChange } = require("../utils/balanceUtils");
 const { parsePagination, buildPaginatedResult } = require("../utils/pagination");
+const { asyncHandler, ApiError } = require("../middleware/errorMiddleware");
 
 const METHOD_TYPES = new Set(["NET_BANKING", "UPI", "CASH", "DEBIT_CARD", "CREDIT_CARD"]);
 
@@ -278,674 +279,594 @@ async function refreshQuotesForTransactions(transactions) {
 }
 
 // Create investment with type, ROI, projections
-const createInvestment = async (req, res) => {
-  try {
-    const userId = req.user?.userId ?? req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+const createInvestment = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId ?? req.user?.id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
 
-    const { amount, instrument, type, roi, projections, details, investedAt, accountId, paymentMethod } =
-      req.body;
+  const { amount, instrument, type, roi, projections, details, investedAt, accountId, paymentMethod } =
+    req.body;
 
-    const parsedAmount = Number(amount);
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      return res.status(400).json({ message: "amount must be a positive number" });
-    }
-    if (!instrument) {
-      return res.status(400).json({ message: "instrument is required" });
-    }
-
-    const investDate = new Date(investedAt);
-    if (Number.isNaN(investDate.getTime())) {
-      return res.status(400).json({ message: "investedAt is required and must be valid" });
-    }
-
-    const parsedRoi = roi === undefined || roi === null || roi === "" ? 0 : Number(roi);
-    if (!Number.isFinite(parsedRoi)) {
-      return res.status(400).json({ message: "roi must be a valid number" });
-    }
-    const month = monthKeyIST(investDate);
-    const week = getWeekOfMonth(investDate);
-
-    const account =
-      accountId != null ? await resolveBankAccount(userId, accountId) : await ensureAccount(userId);
-
-    if (!account) {
-      return res.status(404).json({ message: "Account not found" });
-    }
-    const selectedPaymentMethod = await resolvePaymentMethod(userId, account.id, paymentMethod);
-    if (!selectedPaymentMethod) {
-      return res.status(400).json({
-        message: "Selected payment method is not enabled for this account",
-      });
-    }
-    if (selectedPaymentMethod === "INVALID_METHOD") {
-      return res.status(400).json({ message: "Selected payment method is invalid" });
-    }
-
-    const investment = await prisma.investment.create({
-      data: {
-        userId,
-        accountId: account.id,
-        amount: parsedAmount,
-        instrument,
-        type,
-        roi: parsedRoi,
-        projections,
-        details: details || null,
-        investedAt: investDate,
-        month,
-        week,
-        paymentMethod: selectedPaymentMethod,
-      },
-    });
-
-    // reduce user balance (money invested leaves wallet)
-    await applyBalanceChange(userId, -parsedAmount);
-
-    res.json(investment);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ message: "Failed to create investment", details: err.message });
+  const parsedAmount = Number(amount);
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    throw new ApiError(400, "amount must be a positive number");
   }
-};
-
-const updateInvestment = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { amount, accountId, paymentMethod, investedAt, ...rest } = req.body;
-
-    const existing = await prisma.investment.findUnique({
-      where: { id: parseInt(id) },
-    });
-    if (!existing)
-      return res.status(404).json({ error: "Investment not found" });
-    const userId = req.user?.userId ?? req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    if (existing.userId !== userId)
-      return res.status(403).json({ error: "Forbidden" });
-
-    const diff = amount !== undefined ? amount - existing.amount : 0;
-
-    let parsedInvestedAt = undefined;
-    if (investedAt !== undefined) {
-      parsedInvestedAt = new Date(investedAt);
-      if (Number.isNaN(parsedInvestedAt.getTime())) {
-        return res.status(400).json({ message: "Invalid investedAt date" });
-      }
-    }
-
-    let nextAccountId = undefined;
-    if (accountId !== undefined) {
-      const account = await resolveBankAccount(userId, accountId);
-      if (!account) return res.status(404).json({ message: "Account not found" });
-      nextAccountId = account.id;
-    }
-
-    const effectiveAccountId = nextAccountId ?? existing.accountId;
-    let nextPaymentMethod;
-    if (paymentMethod !== undefined || nextAccountId !== undefined) {
-      const method = await resolvePaymentMethod(
-        userId,
-        effectiveAccountId,
-        paymentMethod !== undefined ? paymentMethod : existing.paymentMethod
-      );
-      if (!method) {
-        return res.status(400).json({
-          message: "Selected payment method is not enabled for this account",
-        });
-      }
-      if (method === "INVALID_METHOD") {
-        return res.status(400).json({ message: "Selected payment method is invalid" });
-      }
-      nextPaymentMethod = method;
-    }
-
-    const updated = await prisma.$transaction(async (tx) => {
-      const inv = await tx.investment.update({
-        where: { id: parseInt(id) },
-        data: {
-          ...rest,
-          ...(amount !== undefined ? { amount } : {}),
-          ...(parsedInvestedAt ? { investedAt: parsedInvestedAt } : {}),
-          ...(nextAccountId !== undefined ? { accountId: nextAccountId } : {}),
-          ...(nextPaymentMethod !== undefined
-            ? { paymentMethod: nextPaymentMethod }
-            : {}),
-        },
-      });
-
-      if (diff !== 0) {
-        await applyBalanceChange(existing.userId, -diff);
-      }
-
-      return inv;
-    });
-
-    res.json(updated);
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to update investment", details: err.message });
+  if (!instrument) {
+    throw new ApiError(400, "instrument is required");
   }
-};
 
-const deleteInvestment = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const existing = await prisma.investment.findUnique({
-      where: { id: parseInt(id) },
-    });
-    if (!existing)
-      return res.status(404).json({ error: "Investment not found" });
-    const userId = req.user?.userId ?? req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-    if (existing.userId !== userId)
-      return res.status(403).json({ error: "Forbidden" });
-
-    await prisma.$transaction(async (tx) => {
-      await tx.investment.delete({ where: { id: parseInt(id) } });
-
-      // refund balance when deleting an investment
-      await applyBalanceChange(existing.userId, existing.amount);
-    });
-
-    res.json({ message: "Investment deleted successfully" });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to delete investment", details: err.message });
+  const investDate = new Date(investedAt);
+  if (Number.isNaN(investDate.getTime())) {
+    throw new ApiError(400, "investedAt is required and must be valid");
   }
-};
 
-const getAllInvestments = async (req, res) => {
-  try {
-    const userId = req.user?.userId ?? req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+  const parsedRoi = roi === undefined || roi === null || roi === "" ? 0 : Number(roi);
+  if (!Number.isFinite(parsedRoi)) {
+    throw new ApiError(400, "roi must be a valid number");
+  }
+  const month = monthKeyIST(investDate);
+  const week = getWeekOfMonth(investDate);
 
-    const month = typeof req.query.month === "string" ? req.query.month.trim() : "";
-    const type = typeof req.query.type === "string" ? req.query.type.trim() : "";
-    const paymentMethod = typeof req.query.paymentMethod === "string"
-      ? normalizeType(req.query.paymentMethod)
-      : "";
-    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
-    const accountId = Number(req.query.accountId);
-    const sortOrder = String(req.query.sortOrder || "desc").toLowerCase() === "asc" ? "asc" : "desc";
-    const sortByRaw = String(req.query.sortBy || "investedAt");
-    const allowedSort = new Set(["investedAt", "amount", "instrument", "month", "roi"]);
-    const sortBy = allowedSort.has(sortByRaw) ? sortByRaw : "investedAt";
+  const account =
+    accountId != null ? await resolveBankAccount(userId, accountId) : await ensureAccount(userId);
 
-    const { page, pageSize, skip, take } = parsePagination(req.query, {
-      defaultPageSize: 10,
-      maxPageSize: 100,
-    });
+  if (!account) {
+    throw new ApiError(404, "Account not found");
+  }
+  const selectedPaymentMethod = await resolvePaymentMethod(userId, account.id, paymentMethod);
+  if (!selectedPaymentMethod) {
+    throw new ApiError(400, "Selected payment method is not enabled for this account");
+  }
+  if (selectedPaymentMethod === "INVALID_METHOD") {
+    throw new ApiError(400, "Selected payment method is invalid");
+  }
 
-    const where = {
+  const investment = await prisma.investment.create({
+    data: {
       userId,
-      ...(month ? { month } : {}),
-      ...(type ? { type: { contains: type, mode: "insensitive" } } : {}),
-      ...(Number.isInteger(accountId) && accountId > 0 ? { accountId } : {}),
-      ...(METHOD_TYPES.has(paymentMethod) ? { paymentMethod } : {}),
-      ...(q
-        ? {
-            OR: [
-              { instrument: { contains: q, mode: "insensitive" } },
-              { details: { contains: q, mode: "insensitive" } },
-              { account: { name: { contains: q, mode: "insensitive" } } },
-            ],
-          }
-        : {}),
-    };
-    const [total, items] = await prisma.$transaction([
-      prisma.investment.count({ where }),
-      prisma.investment.findMany({
-        where,
-        orderBy: { [sortBy]: sortOrder },
-        include: { account: true },
-        skip,
-        take,
-      }),
-    ]);
-    const aggregate = await prisma.investment.aggregate({
-      where,
-      _sum: { amount: true },
-      _avg: { amount: true },
-      _count: { _all: true },
-    });
+      accountId: account.id,
+      amount: parsedAmount,
+      instrument,
+      type,
+      roi: parsedRoi,
+      projections,
+      details: details || null,
+      investedAt: investDate,
+      month,
+      week,
+      paymentMethod: selectedPaymentMethod,
+    },
+  });
 
-    res.json(
-      buildPaginatedResult({
-        items,
-        total,
-        page,
-        pageSize,
-        summary: {
-          totalAmount: Number(aggregate._sum.amount ?? 0),
-          totalCount: Number(aggregate._count?._all ?? total ?? 0),
-          averageAmount: Number(aggregate._avg.amount ?? 0),
-        },
-      })
+  // reduce user balance (money invested leaves wallet)
+  await applyBalanceChange(userId, -parsedAmount);
+
+  res.json(investment);
+});
+
+const updateInvestment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { amount, accountId, paymentMethod, investedAt, ...rest } = req.body;
+
+  const existing = await prisma.investment.findUnique({
+    where: { id: parseInt(id) },
+  });
+  if (!existing) throw new ApiError(404, "Investment not found");
+  const userId = req.user?.userId ?? req.user?.id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  if (existing.userId !== userId) throw new ApiError(403, "Forbidden");
+
+  let parsedAmount = undefined;
+  if (amount !== undefined) {
+    parsedAmount = Number(amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      throw new ApiError(400, "amount must be a positive number");
+    }
+  }
+  const diff =
+    parsedAmount !== undefined ? parsedAmount - Number(existing.amount) : 0;
+
+  let parsedInvestedAt = undefined;
+  if (investedAt !== undefined) {
+    parsedInvestedAt = new Date(investedAt);
+    if (Number.isNaN(parsedInvestedAt.getTime())) {
+      throw new ApiError(400, "Invalid investedAt date");
+    }
+  }
+
+  let nextAccountId = undefined;
+  if (accountId !== undefined) {
+    const account = await resolveBankAccount(userId, accountId);
+    if (!account) throw new ApiError(404, "Account not found");
+    nextAccountId = account.id;
+  }
+
+  const effectiveAccountId = nextAccountId ?? existing.accountId;
+  let nextPaymentMethod;
+  if (paymentMethod !== undefined || nextAccountId !== undefined) {
+    const method = await resolvePaymentMethod(
+      userId,
+      effectiveAccountId,
+      paymentMethod !== undefined ? paymentMethod : existing.paymentMethod
     );
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch investments", details: err.message });
+    if (!method) {
+      throw new ApiError(400, "Selected payment method is not enabled for this account");
+    }
+    if (method === "INVALID_METHOD") {
+      throw new ApiError(400, "Selected payment method is invalid");
+    }
+    nextPaymentMethod = method;
   }
-};
 
-const getInvestmentsByMonth = async (req, res) => {
-  try {
-    const userId = req.user?.userId ?? req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const { month } = req.params;
-    const investments = await prisma.investment.findMany({
-      where: { userId, month },
-      include: { account: true },
-    });
-    res.json(investments);
-  } catch (err) {
-    res.status(500).json({
-      error: "Failed to fetch investments by month",
-      details: err.message,
-    });
-  }
-};
-
-// ROI profit summary
-const getProfitSummary = async (req, res) => {
-  try {
-    const userId = req.user?.userId ?? req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const investments = await prisma.investment.findMany({
-      where: { userId },
-      include: { account: true },
-    });
-
-    let totalInvested = 0;
-    let expectedProfit = 0;
-
-    investments.forEach((inv) => {
-      totalInvested += inv.amount;
-      if (inv.roi) {
-        expectedProfit += inv.amount * (inv.roi / 100);
-      }
-    });
-
-    res.json({ totalInvested, expectedProfit });
-  } catch (err) {
-    res
-      .status(500)
-      .json({ error: "Failed to fetch profit summary", details: err.message });
-  }
-};
-
-const createInvestmentTransaction = async (req, res) => {
-  try {
-    const userId = req.user?.userId ?? req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const {
-      symbol,
-      accountId,
-      paymentMethod,
-      transactionType = "BUY",
-      quantity,
-      price,
-      fees,
-      transactedAt,
-      notes,
-    } = req.body;
-
-    const { instrument, error } = await getInstrumentOrThrow(symbol);
-    if (error) return res.status(error.status).json({ message: error.message });
-
-    const normalizedTransactionType = String(transactionType || "BUY").trim().toUpperCase();
-    if (!["BUY", "SELL"].includes(normalizedTransactionType)) {
-      return res.status(400).json({ message: "transactionType must be BUY or SELL" });
-    }
-
-    const parsedQuantity = Number(quantity);
-    const parsedPrice = Number(price);
-    const parsedFees = fees == null || fees === "" ? 0 : Number(fees);
-
-    if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
-      return res.status(400).json({ message: "quantity must be a positive number" });
-    }
-    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
-      return res.status(400).json({ message: "price must be a positive number" });
-    }
-    if (!Number.isFinite(parsedFees) || parsedFees < 0) {
-      return res.status(400).json({ message: "fees must be zero or greater" });
-    }
-
-    const tradeDate = new Date(transactedAt);
-    if (Number.isNaN(tradeDate.getTime())) {
-      return res.status(400).json({ message: "transactedAt is required and must be valid" });
-    }
-
-    const account =
-      accountId != null ? await resolveBankAccount(userId, accountId) : await ensureAccount(userId);
-    if (!account) return res.status(404).json({ message: "Account not found" });
-
-    const selectedPaymentMethod = await resolvePaymentMethod(userId, account.id, paymentMethod);
-    if (!selectedPaymentMethod) {
-      return res.status(400).json({
-        message: "Selected payment method is not enabled for this account",
-      });
-    }
-    if (selectedPaymentMethod === "INVALID_METHOD") {
-      return res.status(400).json({ message: "Selected payment method is invalid" });
-    }
-
-    if (normalizedTransactionType === "SELL") {
-      const position = await getPositionState(userId, instrument.id);
-      if (position.quantity < parsedQuantity) {
-        return res.status(400).json({
-          message: `Cannot sell ${parsedQuantity}. Available quantity is ${position.quantity}.`,
-        });
-      }
-    }
-
-    const month = monthKeyIST(tradeDate);
-    const week = getWeekOfMonth(tradeDate);
-    const cashDelta =
-      normalizedTransactionType === "BUY"
-        ? -(parsedQuantity * parsedPrice + parsedFees)
-        : parsedQuantity * parsedPrice - parsedFees;
-
-    const transaction = await prisma.investmentTransaction.create({
+  const updated = await prisma.$transaction(async (tx) => {
+    const inv = await tx.investment.update({
+      where: { id: parseInt(id) },
       data: {
-        userId,
-        instrumentId: instrument.id,
-        accountId: account.id,
-        paymentMethod: selectedPaymentMethod,
-        transactionType: normalizedTransactionType,
-        quantity: parsedQuantity,
-        price: parsedPrice,
-        fees: parsedFees,
-        notes: notes || null,
-        transactedAt: tradeDate,
-        month,
-        week,
-      },
-      include: {
-        instrument: { include: { latestQuote: true } },
-        account: true,
-      },
-    });
-
-    await applyBalanceChange(userId, cashDelta);
-
-    return res.status(201).json(serializeTransaction(transaction));
-  } catch (err) {
-    return res.status(500).json({
-      message: "Failed to create investment transaction",
-      details: err.message,
-    });
-  }
-};
-
-const getInvestmentTransactions = async (req, res) => {
-  try {
-    const userId = req.user?.userId ?? req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const symbol = String(req.query.symbol || "").trim().toUpperCase();
-    const accountId = req.query.accountId ? Number(req.query.accountId) : null;
-    const transactionType = String(req.query.transactionType || "").trim().toUpperCase();
-
-    const transactions = await prisma.investmentTransaction.findMany({
-      where: {
-        userId,
-        ...(symbol ? { instrument: { symbol } } : {}),
-        ...(Number.isInteger(accountId) ? { accountId } : {}),
-        ...(transactionType && ["BUY", "SELL"].includes(transactionType)
-          ? { transactionType }
+        ...rest,
+        ...(parsedAmount !== undefined ? { amount: parsedAmount } : {}),
+        ...(parsedInvestedAt
+          ? {
+              investedAt: parsedInvestedAt,
+              month: monthKeyIST(parsedInvestedAt),
+              week: getWeekOfMonth(parsedInvestedAt),
+            }
+          : {}),
+        ...(nextAccountId !== undefined ? { accountId: nextAccountId } : {}),
+        ...(nextPaymentMethod !== undefined
+          ? { paymentMethod: nextPaymentMethod }
           : {}),
       },
-      include: {
-        instrument: { include: { latestQuote: true } },
-        account: true,
+    });
+
+    if (diff !== 0) {
+      await applyBalanceChange(existing.userId, -diff);
+    }
+
+    return inv;
+  });
+
+  res.json(updated);
+});
+
+const deleteInvestment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const existing = await prisma.investment.findUnique({
+    where: { id: parseInt(id) },
+  });
+  if (!existing) throw new ApiError(404, "Investment not found");
+  const userId = req.user?.userId ?? req.user?.id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+  if (existing.userId !== userId) throw new ApiError(403, "Forbidden");
+
+  await prisma.$transaction(async (tx) => {
+    await tx.investment.delete({ where: { id: parseInt(id) } });
+
+    // refund balance when deleting an investment
+    await applyBalanceChange(existing.userId, existing.amount);
+  });
+
+  res.json({ message: "Investment deleted successfully" });
+});
+
+const getAllInvestments = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId ?? req.user?.id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+
+  const month = typeof req.query.month === "string" ? req.query.month.trim() : "";
+  const type = typeof req.query.type === "string" ? req.query.type.trim() : "";
+  const paymentMethod = typeof req.query.paymentMethod === "string"
+    ? normalizeType(req.query.paymentMethod)
+    : "";
+  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  const accountId = Number(req.query.accountId);
+  const sortOrder = String(req.query.sortOrder || "desc").toLowerCase() === "asc" ? "asc" : "desc";
+  const sortByRaw = String(req.query.sortBy || "investedAt");
+  const allowedSort = new Set(["investedAt", "amount", "instrument", "month", "roi"]);
+  const sortBy = allowedSort.has(sortByRaw) ? sortByRaw : "investedAt";
+
+  const { page, pageSize, skip, take } = parsePagination(req.query, {
+    defaultPageSize: 10,
+    maxPageSize: 100,
+  });
+
+  const where = {
+    userId,
+    ...(month ? { month } : {}),
+    ...(type ? { type: { contains: type, mode: "insensitive" } } : {}),
+    ...(Number.isInteger(accountId) && accountId > 0 ? { accountId } : {}),
+    ...(METHOD_TYPES.has(paymentMethod) ? { paymentMethod } : {}),
+    ...(q
+      ? {
+          OR: [
+            { instrument: { contains: q, mode: "insensitive" } },
+            { details: { contains: q, mode: "insensitive" } },
+            { account: { name: { contains: q, mode: "insensitive" } } },
+          ],
+        }
+      : {}),
+  };
+  const [total, items] = await prisma.$transaction([
+    prisma.investment.count({ where }),
+    prisma.investment.findMany({
+      where,
+      orderBy: { [sortBy]: sortOrder },
+      include: { account: true },
+      skip,
+      take,
+    }),
+  ]);
+  const aggregate = await prisma.investment.aggregate({
+    where,
+    _sum: { amount: true },
+    _avg: { amount: true },
+    _count: { _all: true },
+  });
+
+  res.json(
+    buildPaginatedResult({
+      items,
+      total,
+      page,
+      pageSize,
+      summary: {
+        totalAmount: Number(aggregate._sum.amount ?? 0),
+        totalCount: Number(aggregate._count?._all ?? total ?? 0),
+        averageAmount: Number(aggregate._avg.amount ?? 0),
       },
-      orderBy: [{ transactedAt: "desc" }, { id: "desc" }],
-    });
+    })
+  );
+});
 
-    return res.json({ items: transactions.map(serializeTransaction) });
-  } catch (err) {
-    return res.status(500).json({
-      message: "Failed to fetch investment transactions",
-      details: err.message,
-    });
+const getInvestmentsByMonth = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId ?? req.user?.id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+
+  const { month } = req.params;
+  const investments = await prisma.investment.findMany({
+    where: { userId, month },
+    include: { account: true },
+  });
+  res.json(investments);
+});
+
+// ROI profit summary
+const getProfitSummary = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId ?? req.user?.id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+
+  const investments = await prisma.investment.findMany({
+    where: { userId },
+    include: { account: true },
+  });
+
+  let totalInvested = 0;
+  let expectedProfit = 0;
+
+  investments.forEach((inv) => {
+    const amount = asNumber(inv.amount);
+    totalInvested += amount;
+    if (inv.roi) {
+      expectedProfit += amount * (asNumber(inv.roi) / 100);
+    }
+  });
+
+  res.json({ totalInvested, expectedProfit });
+});
+
+const createInvestmentTransaction = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId ?? req.user?.id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+
+  const {
+    symbol,
+    accountId,
+    paymentMethod,
+    transactionType = "BUY",
+    quantity,
+    price,
+    fees,
+    transactedAt,
+    notes,
+  } = req.body;
+
+  const { instrument, error } = await getInstrumentOrThrow(symbol);
+  if (error) throw new ApiError(error.status, error.message);
+
+  const normalizedTransactionType = String(transactionType || "BUY").trim().toUpperCase();
+  if (!["BUY", "SELL"].includes(normalizedTransactionType)) {
+    throw new ApiError(400, "transactionType must be BUY or SELL");
   }
-};
 
-const updateInvestmentTransaction = async (req, res) => {
-  try {
-    const userId = req.user?.userId ?? req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+  const parsedQuantity = Number(quantity);
+  const parsedPrice = Number(price);
+  const parsedFees = fees == null || fees === "" ? 0 : Number(fees);
 
-    const id = Number(req.params.id);
-    const existing = await prisma.investmentTransaction.findUnique({
-      where: { id },
-    });
+  if (!Number.isFinite(parsedQuantity) || parsedQuantity <= 0) {
+    throw new ApiError(400, "quantity must be a positive number");
+  }
+  if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+    throw new ApiError(400, "price must be a positive number");
+  }
+  if (!Number.isFinite(parsedFees) || parsedFees < 0) {
+    throw new ApiError(400, "fees must be zero or greater");
+  }
 
-    if (!existing) return res.status(404).json({ message: "Transaction not found" });
-    if (existing.userId !== userId) return res.status(403).json({ message: "Forbidden" });
+  const tradeDate = new Date(transactedAt);
+  if (Number.isNaN(tradeDate.getTime())) {
+    throw new ApiError(400, "transactedAt is required and must be valid");
+  }
 
-    const nextType = String(req.body.transactionType || existing.transactionType).trim().toUpperCase();
-    const nextQuantity = req.body.quantity != null ? Number(req.body.quantity) : asNumber(existing.quantity);
-    const nextPrice = req.body.price != null ? Number(req.body.price) : asNumber(existing.price);
-    const nextFees = req.body.fees != null ? Number(req.body.fees) : asNumber(existing.fees);
-    const nextDate = req.body.transactedAt ? new Date(req.body.transactedAt) : new Date(existing.transactedAt);
-    const nextAccountId = req.body.accountId != null ? Number(req.body.accountId) : existing.accountId;
-    const nextSymbol = req.body.symbol ? String(req.body.symbol).trim().toUpperCase() : null;
+  const account =
+    accountId != null ? await resolveBankAccount(userId, accountId) : await ensureAccount(userId);
+  if (!account) throw new ApiError(404, "Account not found");
 
-    if (!["BUY", "SELL"].includes(nextType)) {
-      return res.status(400).json({ message: "transactionType must be BUY or SELL" });
+  const selectedPaymentMethod = await resolvePaymentMethod(userId, account.id, paymentMethod);
+  if (!selectedPaymentMethod) {
+    throw new ApiError(400, "Selected payment method is not enabled for this account");
+  }
+  if (selectedPaymentMethod === "INVALID_METHOD") {
+    throw new ApiError(400, "Selected payment method is invalid");
+  }
+
+  if (normalizedTransactionType === "SELL") {
+    const position = await getPositionState(userId, instrument.id);
+    if (position.quantity < parsedQuantity) {
+      throw new ApiError(400, `Cannot sell ${parsedQuantity}. Available quantity is ${position.quantity}.`);
     }
-    if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) {
-      return res.status(400).json({ message: "quantity must be a positive number" });
-    }
-    if (!Number.isFinite(nextPrice) || nextPrice <= 0) {
-      return res.status(400).json({ message: "price must be a positive number" });
-    }
-    if (!Number.isFinite(nextFees) || nextFees < 0) {
-      return res.status(400).json({ message: "fees must be zero or greater" });
-    }
-    if (Number.isNaN(nextDate.getTime())) {
-      return res.status(400).json({ message: "transactedAt must be a valid date" });
-    }
+  }
 
-    const instrumentLookup = nextSymbol
-      ? await getInstrumentOrThrow(nextSymbol)
-      : { instrument: await prisma.instrument.findUnique({ where: { id: existing.instrumentId } }) };
-    if (instrumentLookup.error) {
-      return res.status(instrumentLookup.error.status).json({ message: instrumentLookup.error.message });
-    }
-    const nextInstrument = instrumentLookup.instrument;
+  const month = monthKeyIST(tradeDate);
+  const week = getWeekOfMonth(tradeDate);
+  const cashDelta =
+    normalizedTransactionType === "BUY"
+      ? -(parsedQuantity * parsedPrice + parsedFees)
+      : parsedQuantity * parsedPrice - parsedFees;
 
-    const account =
-      nextAccountId != null ? await resolveBankAccount(userId, nextAccountId) : await ensureAccount(userId);
-    if (!account) return res.status(404).json({ message: "Account not found" });
-
-    const selectedPaymentMethod = await resolvePaymentMethod(
+  const transaction = await prisma.investmentTransaction.create({
+    data: {
       userId,
-      account.id,
-      req.body.paymentMethod ?? existing.paymentMethod
-    );
-    if (!selectedPaymentMethod) {
-      return res.status(400).json({
-        message: "Selected payment method is not enabled for this account",
-      });
-    }
-    if (selectedPaymentMethod === "INVALID_METHOD") {
-      return res.status(400).json({ message: "Selected payment method is invalid" });
-    }
+      instrumentId: instrument.id,
+      accountId: account.id,
+      paymentMethod: selectedPaymentMethod,
+      transactionType: normalizedTransactionType,
+      quantity: parsedQuantity,
+      price: parsedPrice,
+      fees: parsedFees,
+      notes: notes || null,
+      transactedAt: tradeDate,
+      month,
+      week,
+    },
+    include: {
+      instrument: { include: { latestQuote: true } },
+      account: true,
+    },
+  });
 
-    if (nextType === "SELL") {
-      const position = await getPositionState(userId, nextInstrument.id, id);
-      if (position.quantity < nextQuantity) {
-        return res.status(400).json({
-          message: `Cannot sell ${nextQuantity}. Available quantity is ${position.quantity}.`,
-        });
-      }
-    }
+  await applyBalanceChange(userId, cashDelta);
 
-    const existingCashDelta =
-      existing.transactionType === "BUY"
-        ? -(asNumber(existing.quantity) * asNumber(existing.price) + asNumber(existing.fees))
-        : asNumber(existing.quantity) * asNumber(existing.price) - asNumber(existing.fees);
-    const nextCashDelta =
-      nextType === "BUY"
-        ? -(nextQuantity * nextPrice + nextFees)
-        : nextQuantity * nextPrice - nextFees;
-    const balanceAdjustment = nextCashDelta - existingCashDelta;
+  return res.status(201).json(serializeTransaction(transaction));
+});
 
-    const updated = await prisma.investmentTransaction.update({
-      where: { id },
-      data: {
-        instrumentId: nextInstrument.id,
-        accountId: account.id,
-        paymentMethod: selectedPaymentMethod,
-        transactionType: nextType,
-        quantity: nextQuantity,
-        price: nextPrice,
-        fees: nextFees,
-        notes: req.body.notes ?? existing.notes,
-        transactedAt: nextDate,
-        month: monthKeyIST(nextDate),
-        week: getWeekOfMonth(nextDate),
-      },
-      include: {
-        instrument: { include: { latestQuote: true } },
-        account: true,
-      },
-    });
+const getInvestmentTransactions = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId ?? req.user?.id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
 
-    if (balanceAdjustment !== 0) {
-      await applyBalanceChange(userId, balanceAdjustment);
-    }
+  const symbol = String(req.query.symbol || "").trim().toUpperCase();
+  const accountId = req.query.accountId ? Number(req.query.accountId) : null;
+  const transactionType = String(req.query.transactionType || "").trim().toUpperCase();
 
-    return res.json(serializeTransaction(updated));
-  } catch (err) {
-    return res.status(500).json({
-      message: "Failed to update investment transaction",
-      details: err.message,
-    });
+  const transactions = await prisma.investmentTransaction.findMany({
+    where: {
+      userId,
+      ...(symbol ? { instrument: { symbol } } : {}),
+      ...(Number.isInteger(accountId) ? { accountId } : {}),
+      ...(transactionType && ["BUY", "SELL"].includes(transactionType)
+        ? { transactionType }
+        : {}),
+    },
+    include: {
+      instrument: { include: { latestQuote: true } },
+      account: true,
+    },
+    orderBy: [{ transactedAt: "desc" }, { id: "desc" }],
+  });
+
+  return res.json({ items: transactions.map(serializeTransaction) });
+});
+
+const updateInvestmentTransaction = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId ?? req.user?.id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+
+  const id = Number(req.params.id);
+  const existing = await prisma.investmentTransaction.findUnique({
+    where: { id },
+  });
+
+  if (!existing) throw new ApiError(404, "Transaction not found");
+  if (existing.userId !== userId) throw new ApiError(403, "Forbidden");
+
+  const nextType = String(req.body.transactionType || existing.transactionType).trim().toUpperCase();
+  const nextQuantity = req.body.quantity != null ? Number(req.body.quantity) : asNumber(existing.quantity);
+  const nextPrice = req.body.price != null ? Number(req.body.price) : asNumber(existing.price);
+  const nextFees = req.body.fees != null ? Number(req.body.fees) : asNumber(existing.fees);
+  const nextDate = req.body.transactedAt ? new Date(req.body.transactedAt) : new Date(existing.transactedAt);
+  const nextAccountId = req.body.accountId != null ? Number(req.body.accountId) : existing.accountId;
+  const nextSymbol = req.body.symbol ? String(req.body.symbol).trim().toUpperCase() : null;
+
+  if (!["BUY", "SELL"].includes(nextType)) {
+    throw new ApiError(400, "transactionType must be BUY or SELL");
   }
-};
-
-const deleteInvestmentTransaction = async (req, res) => {
-  try {
-    const userId = req.user?.userId ?? req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const id = Number(req.params.id);
-    const existing = await prisma.investmentTransaction.findUnique({
-      where: { id },
-    });
-
-    if (!existing) return res.status(404).json({ message: "Transaction not found" });
-    if (existing.userId !== userId) return res.status(403).json({ message: "Forbidden" });
-
-    await prisma.investmentTransaction.delete({ where: { id } });
-
-    const cashDelta =
-      existing.transactionType === "BUY"
-        ? asNumber(existing.quantity) * asNumber(existing.price) + asNumber(existing.fees)
-        : -(asNumber(existing.quantity) * asNumber(existing.price) - asNumber(existing.fees));
-    await applyBalanceChange(userId, cashDelta);
-
-    return res.json({ message: "Transaction deleted successfully" });
-  } catch (err) {
-    return res.status(500).json({
-      message: "Failed to delete investment transaction",
-      details: err.message,
-    });
+  if (!Number.isFinite(nextQuantity) || nextQuantity <= 0) {
+    throw new ApiError(400, "quantity must be a positive number");
   }
-};
-
-const getInvestmentHoldings = async (req, res) => {
-  try {
-    const userId = req.user?.userId ?? req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const transactions = await prisma.investmentTransaction.findMany({
-      where: { userId },
-      include: {
-        instrument: { include: { latestQuote: true } },
-      },
-      orderBy: [{ transactedAt: "asc" }, { id: "asc" }],
-    });
-
-    const refreshedTransactions = await refreshQuotesForTransactions(transactions);
-    const items = buildHoldingsFromTransactions(refreshedTransactions);
-    return res.json({ items });
-  } catch (err) {
-    return res.status(500).json({
-      message: "Failed to fetch investment holdings",
-      details: err.message,
-    });
+  if (!Number.isFinite(nextPrice) || nextPrice <= 0) {
+    throw new ApiError(400, "price must be a positive number");
   }
-};
-
-const getPortfolioSummary = async (req, res) => {
-  try {
-    const userId = req.user?.userId ?? req.user?.id;
-    if (!userId) return res.status(401).json({ message: "Unauthorized" });
-
-    const transactions = await prisma.investmentTransaction.findMany({
-      where: { userId },
-      include: {
-        instrument: { include: { latestQuote: true } },
-      },
-      orderBy: [{ transactedAt: "asc" }, { id: "asc" }],
-    });
-
-    const refreshedTransactions = await refreshQuotesForTransactions(transactions);
-    const holdings = buildHoldingsFromTransactions(refreshedTransactions);
-    const totalInvested = holdings.reduce((sum, item) => sum + item.investedAmount, 0);
-    const currentValue = holdings.reduce(
-      (sum, item) => sum + Number(item.currentValue || 0),
-      0
-    );
-    const unrealizedProfitLoss = holdings.reduce(
-      (sum, item) => sum + Number(item.unrealizedProfitLoss || 0),
-      0
-    );
-    const realizedProfitLoss = holdings.reduce(
-      (sum, item) => sum + item.realizedProfitLoss,
-      0
-    );
-    const pricedHoldings = holdings.filter((item) => item.currentValue != null);
-    const roiPercent =
-      pricedHoldings.length > 0 && totalInvested > 0
-        ? (unrealizedProfitLoss / totalInvested) * 100
-        : null;
-
-    return res.json({
-      totalInvested: Number(totalInvested.toFixed(2)),
-      currentValue:
-        pricedHoldings.length > 0 ? Number(currentValue.toFixed(2)) : null,
-      unrealizedProfitLoss:
-        pricedHoldings.length > 0 ? Number(unrealizedProfitLoss.toFixed(2)) : null,
-      realizedProfitLoss: Number(realizedProfitLoss.toFixed(2)),
-      roiPercent: roiPercent != null ? Number(roiPercent.toFixed(2)) : null,
-      holdingsCount: holdings.length,
-      pricedHoldingsCount: pricedHoldings.length,
-      unpricedHoldingsCount: holdings.length - pricedHoldings.length,
-      topHolding: holdings[0] || null,
-    });
-  } catch (err) {
-    return res.status(500).json({
-      message: "Failed to fetch portfolio summary",
-      details: err.message,
-    });
+  if (!Number.isFinite(nextFees) || nextFees < 0) {
+    throw new ApiError(400, "fees must be zero or greater");
   }
-};
+  if (Number.isNaN(nextDate.getTime())) {
+    throw new ApiError(400, "transactedAt must be a valid date");
+  }
+
+  const instrumentLookup = nextSymbol
+    ? await getInstrumentOrThrow(nextSymbol)
+    : { instrument: await prisma.instrument.findUnique({ where: { id: existing.instrumentId } }) };
+  if (instrumentLookup.error) {
+    throw new ApiError(instrumentLookup.error.status, instrumentLookup.error.message);
+  }
+  const nextInstrument = instrumentLookup.instrument;
+
+  const account =
+    nextAccountId != null ? await resolveBankAccount(userId, nextAccountId) : await ensureAccount(userId);
+  if (!account) throw new ApiError(404, "Account not found");
+
+  const selectedPaymentMethod = await resolvePaymentMethod(
+    userId,
+    account.id,
+    req.body.paymentMethod ?? existing.paymentMethod
+  );
+  if (!selectedPaymentMethod) {
+    throw new ApiError(400, "Selected payment method is not enabled for this account");
+  }
+  if (selectedPaymentMethod === "INVALID_METHOD") {
+    throw new ApiError(400, "Selected payment method is invalid");
+  }
+
+  if (nextType === "SELL") {
+    const position = await getPositionState(userId, nextInstrument.id, id);
+    if (position.quantity < nextQuantity) {
+      throw new ApiError(400, `Cannot sell ${nextQuantity}. Available quantity is ${position.quantity}.`);
+    }
+  }
+
+  const existingCashDelta =
+    existing.transactionType === "BUY"
+      ? -(asNumber(existing.quantity) * asNumber(existing.price) + asNumber(existing.fees))
+      : asNumber(existing.quantity) * asNumber(existing.price) - asNumber(existing.fees);
+  const nextCashDelta =
+    nextType === "BUY"
+      ? -(nextQuantity * nextPrice + nextFees)
+      : nextQuantity * nextPrice - nextFees;
+  const balanceAdjustment = nextCashDelta - existingCashDelta;
+
+  const updated = await prisma.investmentTransaction.update({
+    where: { id },
+    data: {
+      instrumentId: nextInstrument.id,
+      accountId: account.id,
+      paymentMethod: selectedPaymentMethod,
+      transactionType: nextType,
+      quantity: nextQuantity,
+      price: nextPrice,
+      fees: nextFees,
+      notes: req.body.notes ?? existing.notes,
+      transactedAt: nextDate,
+      month: monthKeyIST(nextDate),
+      week: getWeekOfMonth(nextDate),
+    },
+    include: {
+      instrument: { include: { latestQuote: true } },
+      account: true,
+    },
+  });
+
+  if (balanceAdjustment !== 0) {
+    await applyBalanceChange(userId, balanceAdjustment);
+  }
+
+  return res.json(serializeTransaction(updated));
+});
+
+const deleteInvestmentTransaction = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId ?? req.user?.id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+
+  const id = Number(req.params.id);
+  const existing = await prisma.investmentTransaction.findUnique({
+    where: { id },
+  });
+
+  if (!existing) throw new ApiError(404, "Transaction not found");
+  if (existing.userId !== userId) throw new ApiError(403, "Forbidden");
+
+  await prisma.investmentTransaction.delete({ where: { id } });
+
+  const cashDelta =
+    existing.transactionType === "BUY"
+      ? asNumber(existing.quantity) * asNumber(existing.price) + asNumber(existing.fees)
+      : -(asNumber(existing.quantity) * asNumber(existing.price) - asNumber(existing.fees));
+  await applyBalanceChange(userId, cashDelta);
+
+  return res.json({ message: "Transaction deleted successfully" });
+});
+
+const getInvestmentHoldings = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId ?? req.user?.id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+
+  const transactions = await prisma.investmentTransaction.findMany({
+    where: { userId },
+    include: {
+      instrument: { include: { latestQuote: true } },
+    },
+    orderBy: [{ transactedAt: "asc" }, { id: "asc" }],
+  });
+
+  const refreshedTransactions = await refreshQuotesForTransactions(transactions);
+  const items = buildHoldingsFromTransactions(refreshedTransactions);
+  return res.json({ items });
+});
+
+const getPortfolioSummary = asyncHandler(async (req, res) => {
+  const userId = req.user?.userId ?? req.user?.id;
+  if (!userId) throw new ApiError(401, "Unauthorized");
+
+  const transactions = await prisma.investmentTransaction.findMany({
+    where: { userId },
+    include: {
+      instrument: { include: { latestQuote: true } },
+    },
+    orderBy: [{ transactedAt: "asc" }, { id: "asc" }],
+  });
+
+  const refreshedTransactions = await refreshQuotesForTransactions(transactions);
+  const holdings = buildHoldingsFromTransactions(refreshedTransactions);
+  const totalInvested = holdings.reduce((sum, item) => sum + item.investedAmount, 0);
+  const currentValue = holdings.reduce(
+    (sum, item) => sum + Number(item.currentValue || 0),
+    0
+  );
+  const unrealizedProfitLoss = holdings.reduce(
+    (sum, item) => sum + Number(item.unrealizedProfitLoss || 0),
+    0
+  );
+  const realizedProfitLoss = holdings.reduce(
+    (sum, item) => sum + item.realizedProfitLoss,
+    0
+  );
+  const pricedHoldings = holdings.filter((item) => item.currentValue != null);
+  const roiPercent =
+    pricedHoldings.length > 0 && totalInvested > 0
+      ? (unrealizedProfitLoss / totalInvested) * 100
+      : null;
+
+  return res.json({
+    totalInvested: Number(totalInvested.toFixed(2)),
+    currentValue:
+      pricedHoldings.length > 0 ? Number(currentValue.toFixed(2)) : null,
+    unrealizedProfitLoss:
+      pricedHoldings.length > 0 ? Number(unrealizedProfitLoss.toFixed(2)) : null,
+    realizedProfitLoss: Number(realizedProfitLoss.toFixed(2)),
+    roiPercent: roiPercent != null ? Number(roiPercent.toFixed(2)) : null,
+    holdingsCount: holdings.length,
+    pricedHoldingsCount: pricedHoldings.length,
+    unpricedHoldingsCount: holdings.length - pricedHoldings.length,
+    topHolding: holdings[0] || null,
+  });
+});
 
 module.exports = {
   createInvestment,

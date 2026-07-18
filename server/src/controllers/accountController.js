@@ -1,11 +1,6 @@
 const { asyncHandler, ApiError } = require("../middleware/errorMiddleware");
 const accountService = require("../services/accountService");
-
-const getUserId = (req) => {
-  const raw = req.user?.userId ?? req.user?.id;
-  const id = Number(raw);
-  return Number.isInteger(id) && id > 0 ? id : null;
-};
+const { getUserId } = require("../utils/requestUtils");
 
 exports.getAccounts = asyncHandler(async (req, res) => {
   const userId = getUserId(req);
